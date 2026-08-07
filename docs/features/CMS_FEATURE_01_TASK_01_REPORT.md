@@ -66,8 +66,10 @@ Prisma Client generation was required before the first full validation could com
 
 ## PR
 
-Pending creation after commit and push.
+Draft PR: https://github.com/hakyscg-design/content-management-system/pull/1
 
 ## Ending SHA
 
-The final branch head SHA is recorded in the operator handoff after this report is committed and pushed.
+PR head at initial creation: ceb78422b60feb79301a23c8926264d0fb7821eb.
+
+Final branch head after this report update is recorded in the operator handoff because a Git commit cannot contain its own final content hash.
