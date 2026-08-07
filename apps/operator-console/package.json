@@ -1,0 +1,16 @@
+{
+  "name": "@ftv/operator-console",
+  "version": "0.1.0-l02",
+  "private": true,
+  "type": "module",
+  "description": "L-02 local operator console for Football Troll Vault v2.",
+  "scripts": {
+    "dev": "next dev --hostname localhost --port 3000"
+  },
+  "dependencies": {
+    "@ftv/local-runtime": "workspace:*",
+    "next": "^15.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

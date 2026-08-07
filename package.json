@@ -1,0 +1,49 @@
+{
+  "name": "content-management-system",
+  "version": "0.4.0-be04",
+  "private": true,
+  "type": "module",
+  "description": "Local-first content management system extracted from the FTV v2 accepted production layer.",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11 <12"
+  },
+  "scripts": {
+    "setup": "node scripts/local/setup.mjs",
+    "doctor": "node scripts/local/doctor.mjs",
+    "backup": "node scripts/local/backup.mjs",
+    "restore": "node scripts/local/restore.mjs",
+    "dev": "pnpm --filter @ftv/operator-console dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/bootstrap tests/foundation tests/services",
+    "test:contract": "vitest run tests/foundation/contracts.test.ts",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "node scripts/bootstrap/not-applicable.mjs test:e2e BE-05",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && node scripts/validation/validate-workspace.mjs",
+    "clean": "node scripts/bootstrap/clean.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@prisma/debug": "5.22.0",
+    "@types/node": "^24.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.32.0",
+    "next": "^15.4.0",
+    "prettier": "^3.6.2",
+    "prisma": "5.22.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  }
+}

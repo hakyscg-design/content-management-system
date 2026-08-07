@@ -1,0 +1,10 @@
+{
+  "name": "@ftv/human-review-approval",
+  "version": "0.0.0-be01",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "description": "BE-01 placeholder for FTV-SVC-05 Human Review & Approval Service."
+}

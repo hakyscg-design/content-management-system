@@ -1,0 +1,214 @@
+{
+  "chapters": {
+    "01": {
+      "path": "docs/volume-01-foundation/chapter-01-introduction.md",
+      "source_sha256": "fce7cd01f265eb55b8d86e25870c8fe35d2b8216f0b6fd540942c9fb2e516038",
+      "destination_sha256": "fce7cd01f265eb55b8d86e25870c8fe35d2b8216f0b6fd540942c9fb2e516038",
+      "match": true
+    },
+    "02": {
+      "path": "docs/volume-01-foundation/chapter-02-principles.md",
+      "source_sha256": "c2c00d6c2d0c34f68ee084c7f97e72bd3016eb3d90e81c5d33cc0d3f64ce733f",
+      "destination_sha256": "c2c00d6c2d0c34f68ee084c7f97e72bd3016eb3d90e81c5d33cc0d3f64ce733f",
+      "match": true
+    },
+    "03": {
+      "path": "docs/volume-01-foundation/chapter-03-terminology.md",
+      "source_sha256": "25a438ab5b0b5f58baaae06c853d810a9c8c8940133b8746278650cc66c40dca",
+      "destination_sha256": "25a438ab5b0b5f58baaae06c853d810a9c8c8940133b8746278650cc66c40dca",
+      "match": true
+    },
+    "04": {
+      "path": "docs/volume-01-foundation/chapter-04-repository-lifecycle.md",
+      "source_sha256": "5e933cb992847dab9b5a0bde745df7efe79db16ec4b4e4ea0c94f00cc26ec375",
+      "destination_sha256": "5e933cb992847dab9b5a0bde745df7efe79db16ec4b4e4ea0c94f00cc26ec375",
+      "match": true
+    },
+    "05": {
+      "path": "docs/volume-02-discovery/chapter-05-repository-discovery.md",
+      "source_sha256": "bd6b73a3cd2ddb4436d3764467306942e3e1a7d41c4284f709cfe2e856902a75",
+      "destination_sha256": "bd6b73a3cd2ddb4436d3764467306942e3e1a7d41c4284f709cfe2e856902a75",
+      "match": true
+    },
+    "06": {
+      "path": "docs/volume-02-discovery/chapter-06-search-strategy.md",
+      "source_sha256": "dcccd63ec87ccaafe936b59874fede4a7a851d047a191120c1aeb8bcd8bf5515",
+      "destination_sha256": "dcccd63ec87ccaafe936b59874fede4a7a851d047a191120c1aeb8bcd8bf5515",
+      "match": true
+    },
+    "07": {
+      "path": "docs/volume-02-discovery/chapter-07-initial-screening.md",
+      "source_sha256": "bb37e21edc3ffa13a1d089238eabb2b3e81c688e9fc7e6e3351f20e3044c31fa",
+      "destination_sha256": "bb37e21edc3ffa13a1d089238eabb2b3e81c688e9fc7e6e3351f20e3044c31fa",
+      "match": true
+    },
+    "08": {
+      "path": "docs/volume-03-evaluation/chapter-08-repository-evaluation-standard.md",
+      "source_sha256": "86caf298e95f07ba6bf3100372145000dba59de7ea8648b064387b06183a3cf9",
+      "destination_sha256": "86caf298e95f07ba6bf3100372145000dba59de7ea8648b064387b06183a3cf9",
+      "match": true
+    },
+    "09": {
+      "path": "docs/volume-03-evaluation/chapter-09-license-review.md",
+      "source_sha256": "2ce27af4e87210e524c12244b90a643f5db4069a2cc4b940b9d232fbf0aa76d8",
+      "destination_sha256": "2ce27af4e87210e524c12244b90a643f5db4069a2cc4b940b9d232fbf0aa76d8",
+      "match": true
+    },
+    "10": {
+      "path": "docs/volume-03-evaluation/chapter-10-community-health.md",
+      "source_sha256": "24e283fd48c7772bc104c8daad7113cf05cb05cf0b9680ad4bb088b2dda298e9",
+      "destination_sha256": "24e283fd48c7772bc104c8daad7113cf05cb05cf0b9680ad4bb088b2dda298e9",
+      "match": true
+    },
+    "11": {
+      "path": "docs/volume-03-evaluation/chapter-11-security-review.md",
+      "source_sha256": "c32091cfa8ac3dc23e93b991caafe454f6ae34c67843a8e1a0a1d40df50c5e94",
+      "destination_sha256": "c32091cfa8ac3dc23e93b991caafe454f6ae34c67843a8e1a0a1d40df50c5e94",
+      "match": true
+    },
+    "12": {
+      "path": "docs/volume-03-evaluation/chapter-12-dependency-review.md",
+      "source_sha256": "db6f7f05064cb16190cb67a6807b23911a42f69953c8ea26bb09eb6a87d76729",
+      "destination_sha256": "db6f7f05064cb16190cb67a6807b23911a42f69953c8ea26bb09eb6a87d76729",
+      "match": true
+    },
+    "13": {
+      "path": "docs/volume-03-evaluation/chapter-13-architecture-review.md",
+      "source_sha256": "f45c54c0563cfbd1581cdb547a1c3f77a4f9726ae128d68c1701a158efa02d65",
+      "destination_sha256": "f45c54c0563cfbd1581cdb547a1c3f77a4f9726ae128d68c1701a158efa02d65",
+      "match": true
+    },
+    "14": {
+      "path": "docs/volume-03-evaluation/chapter-14-code-quality-review.md",
+      "source_sha256": "ea866121d57bc3083f383c8d2607706a663a83269a9afbaf93e6ed80791fcf4e",
+      "destination_sha256": "ea866121d57bc3083f383c8d2607706a663a83269a9afbaf93e6ed80791fcf4e",
+      "match": true
+    },
+    "15": {
+      "path": "docs/volume-03-evaluation/chapter-15-performance-review.md",
+      "source_sha256": "ead9c843ec9b44266262a21394a9158f47b6897fd931d5f738105630ce3f8a14",
+      "destination_sha256": "ead9c843ec9b44266262a21394a9158f47b6897fd931d5f738105630ce3f8a14",
+      "match": true
+    },
+    "16": {
+      "path": "docs/volume-03-evaluation/chapter-16-scalability-review.md",
+      "source_sha256": "b0f34fbe9b31069575e0ad4ab16ebaf4de22b2990745de4a9e2b16a728a462e0",
+      "destination_sha256": "b0f34fbe9b31069575e0ad4ab16ebaf4de22b2990745de4a9e2b16a728a462e0",
+      "match": true
+    },
+    "17": {
+      "path": "docs/volume-03-evaluation/chapter-17-observability-review.md",
+      "source_sha256": "6caa7490ace40c9bc0aa3fd0e56a699a17d23ad14c3040773fea89af62922a40",
+      "destination_sha256": "6caa7490ace40c9bc0aa3fd0e56a699a17d23ad14c3040773fea89af62922a40",
+      "match": true
+    },
+    "18": {
+      "path": "docs/volume-04-reverse-engineering/chapter-18-reverse-engineering-workflow.md",
+      "source_sha256": "6c47fc9f9745080e23334625f0fe45fa928ce6c32abbf4bc30a647afd77d6093",
+      "destination_sha256": "6c47fc9f9745080e23334625f0fe45fa928ce6c32abbf4bc30a647afd77d6093",
+      "match": true
+    },
+    "19": {
+      "path": "docs/volume-04-reverse-engineering/chapter-19-data-flow-analysis.md",
+      "source_sha256": "652e3beb9f57b07d6e2ae343e1bd3174c4d6446c618a072fab0ed63bcf3584e5",
+      "destination_sha256": "652e3beb9f57b07d6e2ae343e1bd3174c4d6446c618a072fab0ed63bcf3584e5",
+      "match": true
+    },
+    "20": {
+      "path": "docs/volume-04-reverse-engineering/chapter-20-module-mapping.md",
+      "source_sha256": "5fdbb7eb282124fb03265458b191a01bf77fec75a553dc187e0db8130933b498",
+      "destination_sha256": "5fdbb7eb282124fb03265458b191a01bf77fec75a553dc187e0db8130933b498",
+      "match": true
+    },
+    "21": {
+      "path": "docs/volume-04-reverse-engineering/chapter-21-core-domain-separation.md",
+      "source_sha256": "e57f8e8c315c6fb0592a007af5bdd259ec32256deb5c80c5360855c56b66f9ba",
+      "destination_sha256": "e57f8e8c315c6fb0592a007af5bdd259ec32256deb5c80c5360855c56b66f9ba",
+      "match": true
+    },
+    "22": {
+      "path": "docs/volume-04-reverse-engineering/chapter-22-extension-point-analysis.md",
+      "source_sha256": "db06972e65b6b562ee1714e477b12c1d86f2379e3b92dd25aaf3338b7a11180d",
+      "destination_sha256": "db06972e65b6b562ee1714e477b12c1d86f2379e3b92dd25aaf3338b7a11180d",
+      "match": true
+    },
+    "23": {
+      "path": "docs/volume-05-decision/chapter-23-scoring-framework.md",
+      "source_sha256": "733ea306b35cd72466d679c00b92b8f8993d4ffbbcec8488bddec2acceb69949",
+      "destination_sha256": "733ea306b35cd72466d679c00b92b8f8993d4ffbbcec8488bddec2acceb69949",
+      "match": true
+    },
+    "24": {
+      "path": "docs/volume-05-decision/chapter-24-risk-assessment.md",
+      "source_sha256": "e85870a0f74c4cbd3c6ffbb4c4c59a56f508bfdad0d8355aa3e066fd22e70eb9",
+      "destination_sha256": "e85870a0f74c4cbd3c6ffbb4c4c59a56f508bfdad0d8355aa3e066fd22e70eb9",
+      "match": true
+    },
+    "25": {
+      "path": "docs/volume-05-decision/chapter-25-decision-matrix.md",
+      "source_sha256": "74839461b40e8028bf1bdceba95332fdda00e8fe5733c900743418b62e3b8015",
+      "destination_sha256": "74839461b40e8028bf1bdceba95332fdda00e8fe5733c900743418b62e3b8015",
+      "match": true
+    },
+    "26": {
+      "path": "docs/volume-05-decision/chapter-26-acquisition-report.md",
+      "source_sha256": "b3b13637e6b51dd262a900a438ed123b23e76ed530174de94ff796adb871dc61",
+      "destination_sha256": "b3b13637e6b51dd262a900a438ed123b23e76ed530174de94ff796adb871dc61",
+      "match": true
+    },
+    "27": {
+      "path": "docs/volume-06-migration/chapter-27-migration-planning.md",
+      "source_sha256": "e200c7b503eda423cbd30d78567d8c958ee0f88d587d32d604ae2dfb259bdcf3",
+      "destination_sha256": "e200c7b503eda423cbd30d78567d8c958ee0f88d587d32d604ae2dfb259bdcf3",
+      "match": true
+    },
+    "28": {
+      "path": "docs/volume-06-migration/chapter-28-refactoring-strategy.md",
+      "source_sha256": "a0e43a49fc765ebed84142583240b142f81ed01bbc7ca67373b271f34ecf4ff1",
+      "destination_sha256": "a0e43a49fc765ebed84142583240b142f81ed01bbc7ca67373b271f34ecf4ff1",
+      "match": true
+    },
+    "29": {
+      "path": "docs/volume-06-migration/chapter-29-integration-strategy.md",
+      "source_sha256": "e3a00e1715da7af37b7efb86cbbe948e7fb05736ac29654ba4f947e28dbbdfec",
+      "destination_sha256": "e3a00e1715da7af37b7efb86cbbe948e7fb05736ac29654ba4f947e28dbbdfec",
+      "match": true
+    },
+    "30": {
+      "path": "docs/volume-06-migration/chapter-30-validation-strategy.md",
+      "source_sha256": "1816fcdf381c01f5a3aacee13c0728d6d4314f94ad5e5db5c7a98f5629975356",
+      "destination_sha256": "1816fcdf381c01f5a3aacee13c0728d6d4314f94ad5e5db5c7a98f5629975356",
+      "match": true
+    },
+    "31": {
+      "path": "docs/volume-06-migration/chapter-31-rollback-strategy.md",
+      "source_sha256": "915e55073a6ec35a3cdedc17714129593a8d27c36fdeade9e6444f8448e654a3",
+      "destination_sha256": "915e55073a6ec35a3cdedc17714129593a8d27c36fdeade9e6444f8448e654a3",
+      "match": true
+    },
+    "32": {
+      "path": "docs/volume-07-operations/chapter-32-ai-assisted-review.md",
+      "source_sha256": "35d7fdb93b66fd32c7d8624b0c93a9bbba6cb7d3462471c1d5558f7ec87b97c0",
+      "destination_sha256": "35d7fdb93b66fd32c7d8624b0c93a9bbba6cb7d3462471c1d5558f7ec87b97c0",
+      "match": true
+    },
+    "33": {
+      "path": "docs/volume-07-operations/chapter-33-documentation-standards.md",
+      "source_sha256": "5decf6b72d563437f043fae2f9122c4cc3c47e1cff4d572806216198401bc372",
+      "destination_sha256": "5decf6b72d563437f043fae2f9122c4cc3c47e1cff4d572806216198401bc372",
+      "match": true
+    },
+    "34": {
+      "path": "docs/volume-07-operations/chapter-34-repository-maintenance.md",
+      "source_sha256": "e60cb4d69ad434bd604a29aafcb2a077ed950189bc6d9f4b4b42f4ad6e25b412",
+      "destination_sha256": "e60cb4d69ad434bd604a29aafcb2a077ed950189bc6d9f4b4b42f4ad6e25b412",
+      "match": true
+    },
+    "35": {
+      "path": "docs/volume-07-operations/chapter-35-continuous-re-evaluation.md",
+      "source_sha256": "9e908727d479aa3915b7f8a752ac7478b48ca6031efdd0411a528891ed2d236b",
+      "destination_sha256": "9e908727d479aa3915b7f8a752ac7478b48ca6031efdd0411a528891ed2d236b",
+      "match": true
+    }
+  }
+}

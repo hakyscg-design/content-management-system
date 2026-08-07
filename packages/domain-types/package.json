@@ -1,0 +1,9 @@
+{
+  "name": "@ftv/domain-types",
+  "version": "0.0.0-be02",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

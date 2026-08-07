@@ -1,0 +1,10 @@
+{
+  "name": "@ftv/workflow-orchestration",
+  "version": "0.0.0-be01",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "description": "BE-01 placeholder for FTV-SVC-08 Workflow Orchestration Service."
+}

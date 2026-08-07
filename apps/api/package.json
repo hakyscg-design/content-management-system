@@ -1,0 +1,7 @@
+{
+  "name": "@ftv/api",
+  "version": "0.0.0-be01",
+  "private": true,
+  "type": "module",
+  "description": "BE-01 placeholder for the future FTV API boundary."
+}

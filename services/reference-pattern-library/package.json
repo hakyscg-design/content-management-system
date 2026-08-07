@@ -1,0 +1,7 @@
+{
+  "name": "@ftv/reference-pattern-library",
+  "version": "0.0.0-be01",
+  "private": true,
+  "type": "module",
+  "description": "BE-01 non-runtime placeholder for FTV-SVC-10 Reference Pattern Library."
+}

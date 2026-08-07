@@ -1,0 +1,9 @@
+{
+  "name": "@ftv/errors",
+  "version": "0.0.0-be02",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

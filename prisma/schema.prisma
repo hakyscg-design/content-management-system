@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model LocalRecord {
+  id             String   @id
+  ownerServiceId String
+  entityType     String
+  label          String
+  status         String
+  payload        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([ownerServiceId])
+  @@index([entityType])
+}
+
+model LocalMedia {
+  id             String   @id
+  ownerServiceId String
+  fileName       String
+  relativePath   String   @unique
+  contentType    String
+  byteSize       Int
+  sha256         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([ownerServiceId])
+}
+
+model LocalOperation {
+  id          String   @id
+  title       String
+  ok          Boolean
+  message     String
+  code        String?
+  category    String?
+  payload     String
+  createdAt   DateTime @default(now())
+}
+
+model LocalConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

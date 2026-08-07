@@ -1,0 +1,28 @@
+{
+  "name": "@ftv/local-runtime",
+  "version": "0.1.0-l03",
+  "private": true,
+  "type": "module",
+  "description": "Local runtime composition and durable application boundary.",
+  "dependencies": {
+    "@prisma/client": "5.22.0",
+    "@ftv/analytics-reporting": "workspace:*",
+    "@ftv/content-production": "workspace:*",
+    "@ftv/core-data-administration": "workspace:*",
+    "@ftv/errors": "workspace:*",
+    "@ftv/governance-rule": "workspace:*",
+    "@ftv/human-review-approval": "workspace:*",
+    "@ftv/identifiers": "workspace:*",
+    "@ftv/media-processing": "workspace:*",
+    "@ftv/performance-data": "workspace:*",
+    "@ftv/publishing-preparation": "workspace:*",
+    "@ftv/source-asset-registry": "workspace:*",
+    "@ftv/workflow-orchestration": "workspace:*"
+  },
+  "devDependencies": {
+    "prisma": "5.22.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
