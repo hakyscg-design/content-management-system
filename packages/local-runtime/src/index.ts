@@ -3,8 +3,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, relative } from "node:path";
 import process from "node:process";
 import { PrismaClient } from "@prisma/client";
+import { loadProjectConfig } from "@ftv/configuration";
 import { toSafeErrorOutput } from "@ftv/errors";
 import { createEntityReference } from "@ftv/identifiers";
+import type { CanonicalProject } from "@ftv/domain-types";
 import { AnalyticsReportingService } from "@ftv/analytics-reporting";
 import { ContentProductionService } from "@ftv/content-production";
 import { CoreDataAdministrationService } from "@ftv/core-data-administration";
@@ -22,7 +24,6 @@ import {
 export const LOCAL_RUNTIME_KIND = "durable-sqlite-l03" as const;
 
 const schemaVersion = "l03-20260731000100";
-const defaultBaseDir = ".ftv-local";
 const operatorAction: ManualAction = Object.freeze({
   actorId: "local-operator",
   reason: "L-03 local operator action"
@@ -76,6 +77,7 @@ export interface LocalOperationResult {
 
 export interface LocalDashboardView {
   readonly runtimeKind: typeof LOCAL_RUNTIME_KIND;
+  readonly project: CanonicalProject;
   readonly persistence: "persistent";
   readonly warning: string;
   readonly records: readonly LocalRecordSummary[];
@@ -87,6 +89,7 @@ export interface LocalDashboardView {
 interface LocalRuntimeState {
   readonly services: LocalRuntimeServices;
   readonly prisma: PrismaClient;
+  readonly project: CanonicalProject;
   readonly baseDir: string;
   readonly mediaDir: string;
 }
@@ -164,6 +167,7 @@ export async function getLocalDashboardView(): Promise<LocalDashboardView> {
 
   return Object.freeze({
     runtimeKind: LOCAL_RUNTIME_KIND,
+    project: runtime.project,
     persistence: "persistent" as const,
     warning:
       "L-03 uses SQLite and local filesystem storage. Data and media persist across local restarts.",
@@ -393,8 +397,10 @@ function findWorkspaceRoot(startDirectory: string): string {
 
 function createRuntime(): LocalRuntimeState {
   const workspaceRoot = findWorkspaceRoot(process.cwd());
+  const config = loadProjectConfig();
+  const project = config.project;
   const configuredBaseDir =
-    process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDir;
+    process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(project.id);
 
   const baseRoot = isAbsolute(configuredBaseDir)
     ? configuredBaseDir
@@ -419,6 +425,7 @@ function createRuntime(): LocalRuntimeState {
         }
       }
     }),
+    project,
     baseDir: baseRoot,
     mediaDir,
     services: {
@@ -635,6 +642,14 @@ function safeLocalPath(baseDir: string, relativePath: string): string {
     throw new Error("local media path escapes FTV_LOCAL_BASE_DIR");
   }
   return target;
+}
+
+function defaultBaseDirForProject(projectId: string): string {
+  if (projectId === "football-troll-vault") {
+    return ".ftv-local";
+  }
+
+  return join(".cms-local", projectId);
 }
 
 export function readLocalMediaBytes(relativePath: string): Buffer {

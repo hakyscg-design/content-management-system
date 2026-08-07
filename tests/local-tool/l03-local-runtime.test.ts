@@ -12,6 +12,7 @@ describe("L-03 local runtime persistence", () => {
 
   beforeEach(async () => {
     baseDir = mkdtempSync(join(tmpdir(), "ftv-l03-"));
+    delete process.env.CMS_PROJECT_ID;
     process.env.FTV_LOCAL_BASE_DIR = baseDir;
     process.env.DATABASE_URL = `file:${join(baseDir, "database", "ftv.sqlite").replaceAll("\\", "/")}`;
     execSync("npm run setup", {
@@ -36,6 +37,8 @@ describe("L-03 local runtime persistence", () => {
     const view = await runtime.getLocalDashboardView();
 
     expect(view.runtimeKind).toBe(runtime.LOCAL_RUNTIME_KIND);
+    expect(view.project.id).toBe("football-troll-vault");
+    expect(view.project.serviceNamespace).toBe("FTV");
     expect(view.persistence).toBe("persistent");
     expect(view.warning).toContain("persist");
     expect(

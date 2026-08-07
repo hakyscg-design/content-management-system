@@ -7,8 +7,10 @@
   "dependencies": {
     "@prisma/client": "5.22.0",
     "@ftv/analytics-reporting": "workspace:*",
+    "@ftv/configuration": "workspace:*",
     "@ftv/content-production": "workspace:*",
     "@ftv/core-data-administration": "workspace:*",
+    "@ftv/domain-types": "workspace:*",
     "@ftv/errors": "workspace:*",
     "@ftv/governance-rule": "workspace:*",
     "@ftv/human-review-approval": "workspace:*",
