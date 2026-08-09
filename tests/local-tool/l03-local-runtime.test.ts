@@ -48,6 +48,7 @@ describe("L-03 local runtime persistence", () => {
     expect(view.routes.map((route) => route.route)).toEqual([
       "/",
       "/source-assets",
+      "/content-production",
       "/workflow",
       "/review",
       "/publishing",
@@ -70,6 +71,90 @@ describe("L-03 local runtime persistence", () => {
           record.ownerServiceId === "FTV-SVC-01"
       )
     ).toBe(true);
+  });
+
+  it("persists the manual source to publishing preparation workspace flow", async () => {
+    const assetResult = await runtime.createManualSourceAsset({
+      sourceUrl: "manual://operator/source-001",
+      label: "Operator source asset",
+      evidence: "Manual rights evidence"
+    });
+    expect(assetResult.ok).toBe(true);
+
+    let view = await runtime.getLocalDashboardView();
+    const assetRecord = view.records.find(
+      (record) =>
+        record.entityType === "Asset" &&
+        record.label === "Operator source asset"
+    );
+    expect(assetRecord).toBeDefined();
+    expect(assetRecord?.ownerServiceId).toBe("FTV-SVC-01");
+
+    const contentResult = await runtime.createContentProductionPackage({
+      assetId: assetRecord?.id ?? "",
+      title: "Operator content package",
+      concept: "Manual content concept",
+      caption: "Manual caption"
+    });
+    expect(contentResult.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const contentRecord = view.records.find(
+      (record) =>
+        record.entityType === "ContentPackage" &&
+        record.label === "Operator content package"
+    );
+    expect(contentRecord).toBeDefined();
+    expect(contentRecord?.ownerServiceId).toBe("FTV-SVC-03");
+    expect(contentRecord?.status).toBe("ready-for-review");
+
+    const reviewResult = await runtime.approveContentForReview({
+      contentPackageId: contentRecord?.id ?? "",
+      reviewerId: "operator-reviewer",
+      reason: "Manual approval"
+    });
+    expect(reviewResult.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const reviewRecord = view.records.find(
+      (record) =>
+        record.entityType === "HumanReview" &&
+        record.label === `Review for ${contentRecord?.id}`
+    );
+    expect(reviewRecord).toBeDefined();
+    expect(reviewRecord?.ownerServiceId).toBe("FTV-SVC-05");
+    expect(reviewRecord?.status).toBe("approved");
+
+    const publishingResult = await runtime.prepareManualPublishingPackage({
+      contentPackageId: contentRecord?.id ?? "",
+      destination: "manual-channel",
+      caption: "Final manual caption"
+    });
+    expect(publishingResult.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const publishingRecord = view.records.find(
+      (record) =>
+        record.entityType === "PublishingPackage" &&
+        record.label === `Manual package for ${contentRecord?.id}`
+    );
+    expect(publishingRecord).toBeDefined();
+    expect(publishingRecord?.ownerServiceId).toBe("FTV-SVC-04");
+    expect(publishingRecord?.status).toBe("ready");
+
+    const completionResult = await runtime.completeManualPublishingPackage({
+      publishingPackageId: publishingRecord?.id ?? "",
+      manualPublishingReference: "manual://published/operator-001"
+    });
+    expect(completionResult.ok).toBe(true);
+
+    await runtime.resetLocalRuntimeForTests();
+    view = await runtime.getLocalDashboardView();
+    const completedPackage = view.records.find(
+      (record) => record.id === publishingRecord?.id
+    );
+    expect(completedPackage?.status).toBe("completed");
+    expect(view.lastOperation?.title).toBe("Manual publishing recorded");
   });
 
   it("persists local media metadata and file bytes across runtime restart", async () => {

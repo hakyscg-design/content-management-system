@@ -67,6 +67,7 @@ describe("L-03 static boundaries", () => {
     const routes = [
       "/",
       "/source-assets",
+      "/content-production",
       "/workflow",
       "/review",
       "/publishing",

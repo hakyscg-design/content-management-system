@@ -9,7 +9,7 @@ import {
   resolveProject
 } from "@ftv/configuration";
 import { toSafeErrorOutput } from "@ftv/errors";
-import { createEntityReference } from "@ftv/identifiers";
+import { createEntityReference, type EntityReference } from "@ftv/identifiers";
 import type { CanonicalProject } from "@ftv/domain-types";
 import { AnalyticsReportingService } from "@ftv/analytics-reporting";
 import { ContentProductionService } from "@ftv/content-production";
@@ -79,6 +79,37 @@ export interface LocalOperationResult {
   readonly workflowRunId?: string;
 }
 
+export interface ManualSourceAssetInput {
+  readonly sourceUrl?: string;
+  readonly evidence?: string;
+  readonly label?: string;
+}
+
+export interface ContentProductionInput {
+  readonly assetId: string;
+  readonly title?: string;
+  readonly concept?: string;
+  readonly caption?: string;
+  readonly note?: string;
+}
+
+export interface ReviewApprovalInput {
+  readonly contentPackageId: string;
+  readonly reviewerId?: string;
+  readonly reason?: string;
+}
+
+export interface PublishingPreparationInput {
+  readonly contentPackageId: string;
+  readonly destination?: string;
+  readonly caption?: string;
+}
+
+export interface ManualPublishingCompletionInput {
+  readonly publishingPackageId: string;
+  readonly manualPublishingReference?: string;
+}
+
 export interface LocalDashboardView {
   readonly runtimeKind: typeof LOCAL_RUNTIME_KIND;
   readonly project: CanonicalProject;
@@ -109,6 +140,7 @@ interface PersistedRecordRow {
   readonly entityType: string;
   readonly label: string;
   readonly status: string;
+  readonly payload: string;
 }
 
 interface PersistedMediaRow {
@@ -132,6 +164,12 @@ const routeSummaries: readonly LocalRouteSummary[] = Object.freeze([
     route: "/source-assets",
     capability: "CAP-01 Asset Acquisition; CAP-02 Asset Management",
     owningService: "FTV-SVC-01",
+    status: "implemented"
+  }),
+  Object.freeze({
+    route: "/content-production",
+    capability: "CAP-03 Content Production",
+    owningService: "FTV-SVC-03",
     status: "implemented"
   }),
   Object.freeze({
@@ -243,10 +281,20 @@ export async function getLocalDashboardView(
 export async function submitLocalAssetIntake(
   options: LocalRuntimeOptions = {}
 ): Promise<LocalOperationResult> {
+  return createManualSourceAsset({}, options);
+}
+
+export async function createManualSourceAsset(
+  input: ManualSourceAssetInput = {},
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
   const runtime = getLocalRuntimeState(options);
   const sequence = await nextSequence(runtime);
   const sourceId = `l03-source-${sequence}`;
   const assetId = `l03-asset-${sequence}`;
+  const sourceUrl = input.sourceUrl?.trim() || `manual://approved-source/${sequence}`;
+  const evidence = input.evidence?.trim() || "L-03 local durable evidence";
+  const label = input.label?.trim() || "Source & Asset Registry asset";
 
   try {
     const workflow = runtime.services.workflowOrchestration.startRun(
@@ -256,14 +304,14 @@ export async function submitLocalAssetIntake(
     );
     const source = runtime.services.sourceAssetRegistry.captureSource(
       sourceId,
-      `manual://approved-source/${sequence}`,
+      sourceUrl,
       operatorAction
     );
     runtime.services.sourceAssetRegistry.approveSource(source.id, operatorAction);
     const asset = runtime.services.sourceAssetRegistry.registerAsset({
       id: assetId,
       sourceReferenceId: source.id,
-      evidence: "L-03 local durable evidence",
+      evidence,
       action: operatorAction
     });
     runtime.services.sourceAssetRegistry.updateRightsStatus(
@@ -284,10 +332,12 @@ export async function submitLocalAssetIntake(
       id: assetId,
       ownerServiceId: "FTV-SVC-01",
       entityType: "Asset",
-      label: "Source & Asset Registry asset",
+      label,
       status: asset?.status ?? "unknown",
       payload: toPayload({
         sourceId,
+        sourceUrl,
+        evidence,
         workflowRunId: workflow.id,
         persistedBy: "L-03 Local Runtime"
       })
@@ -301,6 +351,309 @@ export async function submitLocalAssetIntake(
     });
   } catch (error) {
     return recordOperation(runtime, safeFailure("Owner-routed asset intake rejected", error));
+  }
+}
+
+export async function createContentProductionPackage(
+  input: ContentProductionInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+  const sequence = await nextSequence(runtime);
+
+  try {
+    const assetRecord = await requirePersistedRecord(runtime, input.assetId, "Asset");
+    const briefId = `l03-brief-${sequence}`;
+    const packageId = `l03-content-${sequence}`;
+    const title = input.title?.trim() || `Manual brief for ${assetRecord.id}`;
+    const concept =
+      input.concept?.trim() || `Manual content concept using ${assetRecord.label}`;
+    const caption =
+      input.caption?.trim() || `Manual caption for ${assetRecord.label}`;
+    const note = input.note?.trim() || "Manual content version";
+    const assetRef = createEntityReference({
+      id: assetRecord.id,
+      ownerServiceId: "FTV-SVC-01",
+      entityType: "Asset"
+    });
+    const brief = runtime.services.contentProduction.createBrief(
+      briefId,
+      title,
+      concept,
+      operatorAction
+    );
+    const contentPackage = runtime.services.contentProduction.createContentPackage(
+      packageId,
+      brief.id,
+      [assetRef],
+      operatorAction
+    );
+    const version = runtime.services.contentProduction.createVersion(
+      contentPackage.id,
+      { caption, concept },
+      note,
+      operatorAction
+    );
+    const readyPackage = runtime.services.contentProduction.markReadyForReview(
+      contentPackage.id,
+      operatorAction
+    );
+
+    await upsertRecord(runtime, {
+      id: readyPackage.id,
+      ownerServiceId: "FTV-SVC-03",
+      entityType: "ContentPackage",
+      label: title,
+      status: readyPackage.status,
+      payload: toPayload({
+        assetId: assetRecord.id,
+        briefId: brief.id,
+        versionId: version.id,
+        caption,
+        concept
+      })
+    });
+
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Content package ready for review",
+      message: `Created ${readyPackage.id} through FTV-SVC-03 for ${assetRecord.id}.`
+    });
+  } catch (error) {
+    return recordOperation(runtime, safeFailure("Content production rejected", error));
+  }
+}
+
+export async function approveContentForReview(
+  input: ReviewApprovalInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+  const sequence = await nextSequence(runtime);
+
+  try {
+    const contentRecord = await requirePersistedRecord(
+      runtime,
+      input.contentPackageId,
+      "ContentPackage"
+    );
+    const contentPayload = parsePayload(contentRecord.payload);
+    const versionId = readPayloadString(contentPayload, "versionId");
+    const reviewId = `l03-review-${sequence}`;
+    const reviewerId = input.reviewerId?.trim() || operatorAction.actorId;
+    const reason =
+      input.reason?.trim() || "Manual approval for publishing preparation";
+    const versionRef = createEntityReference({
+      id: versionId,
+      ownerServiceId: "FTV-SVC-03",
+      entityType: "ContentVersion"
+    });
+    runtime.services.humanReviewApproval.requestReview(
+      reviewId,
+      versionRef,
+      operatorAction
+    );
+    runtime.services.humanReviewApproval.assignReviewer(reviewId, reviewerId, {
+      actorId: operatorAction.actorId,
+      reason: "Manual reviewer assignment"
+    });
+    runtime.services.humanReviewApproval.recordDecision(reviewId, "approved", {
+      actorId: reviewerId,
+      reason
+    });
+    const approvalRef =
+      runtime.services.humanReviewApproval.approvalStatusReference(reviewId);
+
+    await upsertRecord(runtime, {
+      id: reviewId,
+      ownerServiceId: "FTV-SVC-05",
+      entityType: "HumanReview",
+      label: `Review for ${contentRecord.id}`,
+      status: approvalRef.approvalState,
+      payload: toPayload({
+        contentPackageId: contentRecord.id,
+        contentVersionId: versionId,
+        approvalStatusRef: approvalRef,
+        reviewerId,
+        reason
+      })
+    });
+
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Human review approved",
+      message: `Approved ${versionId} through FTV-SVC-05.`
+    });
+  } catch (error) {
+    return recordOperation(runtime, safeFailure("Human review rejected", error));
+  }
+}
+
+export async function prepareManualPublishingPackage(
+  input: PublishingPreparationInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+  const sequence = await nextSequence(runtime);
+
+  try {
+    const contentRecord = await requirePersistedRecord(
+      runtime,
+      input.contentPackageId,
+      "ContentPackage"
+    );
+    const contentPayload = parsePayload(contentRecord.payload);
+    const versionId = readPayloadString(contentPayload, "versionId");
+    const reviewRecord = await findApprovedReviewRecord(runtime, contentRecord.id);
+    const reviewPayload = parsePayload(reviewRecord.payload);
+    const approvalStatusRef = readPayloadEntityReference(
+      reviewPayload,
+      "approvalStatusRef"
+    );
+    const publishingPackageId = `l03-publishing-${sequence}`;
+    const destination = input.destination?.trim() || "manual";
+    const caption =
+      input.caption?.trim() ||
+      readPayloadString(contentPayload, "caption", "Manual publishing caption");
+    const contentVersionRef = createEntityReference({
+      id: versionId,
+      ownerServiceId: "FTV-SVC-03",
+      entityType: "ContentVersion"
+    });
+    const publishingPackage =
+      runtime.services.publishingPreparation.createPublishingPackage({
+        id: publishingPackageId,
+        contentVersionRef,
+        approvalStatusRef,
+        metadata: { destination, caption },
+        action: operatorAction
+      });
+    const checked = runtime.services.publishingPreparation.updateChecklist(
+      publishingPackage.id,
+      {
+        metadataReviewed: true,
+        rightsReviewed: true,
+        approvalConfirmed: true,
+        exportPrepared: true
+      },
+      operatorAction
+    );
+    const ready = runtime.services.publishingPreparation.markReady(
+      checked.id,
+      operatorAction
+    );
+
+    await upsertRecord(runtime, {
+      id: ready.id,
+      ownerServiceId: "FTV-SVC-04",
+      entityType: "PublishingPackage",
+      label: `Manual package for ${contentRecord.id}`,
+      status: ready.status,
+      payload: toPayload({
+        contentPackageId: contentRecord.id,
+        contentVersionId: versionId,
+        contentVersionRef,
+        approvalStatusRef,
+        reviewId: reviewRecord.id,
+        destination,
+        caption,
+        checklist: ready.checklist
+      })
+    });
+
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Publishing package ready",
+      message: `Prepared ${ready.id} through FTV-SVC-04 for manual publishing.`
+    });
+  } catch (error) {
+    return recordOperation(runtime, safeFailure("Publishing preparation rejected", error));
+  }
+}
+
+export async function completeManualPublishingPackage(
+  input: ManualPublishingCompletionInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+
+  try {
+    const publishingRecord = await requirePersistedRecord(
+      runtime,
+      input.publishingPackageId,
+      "PublishingPackage"
+    );
+    const publishingPayload = parsePayload(publishingRecord.payload);
+    const manualPublishingReference =
+      input.manualPublishingReference?.trim() ||
+      `manual://published/${publishingRecord.id}`;
+    let publishingPackage = runtime.services.publishingPreparation.getPackage(
+      publishingRecord.id
+    );
+    if (!publishingPackage) {
+      publishingPackage =
+        runtime.services.publishingPreparation.createPublishingPackage({
+          id: publishingRecord.id,
+          contentVersionRef: readPayloadEntityReference(
+            publishingPayload,
+            "contentVersionRef"
+          ),
+          approvalStatusRef: readPayloadEntityReference(
+            publishingPayload,
+            "approvalStatusRef"
+          ),
+          metadata: {
+            destination: readPayloadString(
+              publishingPayload,
+              "destination",
+              "manual"
+            ),
+            caption: readPayloadString(
+              publishingPayload,
+              "caption",
+              "Manual publishing caption"
+            )
+          },
+          action: operatorAction
+        });
+      const checked = runtime.services.publishingPreparation.updateChecklist(
+        publishingPackage.id,
+        {
+          metadataReviewed: true,
+          rightsReviewed: true,
+          approvalConfirmed: true,
+          exportPrepared: true
+        },
+        operatorAction
+      );
+      publishingPackage = runtime.services.publishingPreparation.markReady(
+        checked.id,
+        operatorAction
+      );
+    }
+
+    runtime.services.publishingPreparation.recordManualPublishingComplete(
+      publishingPackage.id,
+      manualPublishingReference,
+      operatorAction
+    );
+
+    await upsertRecord(runtime, {
+      ...publishingRecord,
+      status: "completed",
+      payload: toPayload({
+        ...publishingPayload,
+        manualPublishingReference
+      })
+    });
+
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Manual publishing recorded",
+      message: `Recorded manual publishing completion for ${publishingRecord.id}.`
+    });
+  } catch (error) {
+    return recordOperation(runtime, safeFailure("Manual publishing rejected", error));
   }
 }
 
@@ -675,6 +1028,52 @@ async function upsertRecord(
   });
 }
 
+async function requirePersistedRecord(
+  runtime: LocalRuntimeState,
+  id: string,
+  entityType: string
+): Promise<PersistedRecordRow> {
+  const record = await runtime.prisma.localRecord.findUnique({
+    where: {
+      projectId_id: {
+        projectId: runtime.project.id,
+        id
+      }
+    }
+  });
+
+  if (!record || record.entityType !== entityType) {
+    throw new Error(`${entityType} record was not found for active project.`);
+  }
+
+  return record as PersistedRecordRow;
+}
+
+async function findApprovedReviewRecord(
+  runtime: LocalRuntimeState,
+  contentPackageId: string
+): Promise<PersistedRecordRow> {
+  const reviews = (await runtime.prisma.localRecord.findMany({
+    where: {
+      projectId: runtime.project.id,
+      entityType: "HumanReview",
+      status: "approved"
+    },
+    orderBy: { createdAt: "desc" }
+  })) as PersistedRecordRow[];
+
+  const review = reviews.find((candidate) => {
+    const payload = parsePayload(candidate.payload);
+    return readPayloadString(payload, "contentPackageId", "") === contentPackageId;
+  });
+
+  if (!review) {
+    throw new Error("Approved human review was not found for content package.");
+  }
+
+  return review;
+}
+
 async function nextSequence(runtime: LocalRuntimeState): Promise<number> {
   const key = "operation.sequence";
   const current = await runtime.prisma.localConfig.findUnique({
@@ -723,6 +1122,60 @@ async function recordOperation(
 
 function toPayload(value: unknown): string {
   return JSON.stringify(value);
+}
+
+function parsePayload(payload: string): Readonly<Record<string, unknown>> {
+  const parsed = JSON.parse(payload) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Persisted record payload is invalid.");
+  }
+
+  return parsed as Readonly<Record<string, unknown>>;
+}
+
+function readPayloadString(
+  payload: Readonly<Record<string, unknown>>,
+  key: string,
+  fallback?: string
+): string {
+  const value = payload[key];
+  if (typeof value === "string" && value.trim()) {
+    return value;
+  }
+
+  if (fallback !== undefined) {
+    return fallback;
+  }
+
+  throw new Error(`Persisted record payload is missing ${key}.`);
+}
+
+function readPayloadRecord(
+  payload: Readonly<Record<string, unknown>>,
+  key: string
+): Readonly<Record<string, unknown>> {
+  const value = payload[key];
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Readonly<Record<string, unknown>>;
+  }
+
+  throw new Error(`Persisted record payload is missing ${key}.`);
+}
+
+function readPayloadEntityReference(
+  payload: Readonly<Record<string, unknown>>,
+  key: string
+): EntityReference {
+  const value = readPayloadRecord(payload, key);
+  if (
+    typeof value.id === "string" &&
+    typeof value.ownerServiceId === "string" &&
+    typeof value.entityType === "string"
+  ) {
+    return value as unknown as EntityReference;
+  }
+
+  throw new Error(`Persisted record payload has invalid ${key}.`);
 }
 
 function safeFailure(

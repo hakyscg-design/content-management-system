@@ -4,74 +4,81 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
+  const assets = view.records.filter((record) => record.entityType === "Asset");
   const packages = view.records.filter(
     (record) => record.entityType === "ContentPackage"
-  );
-  const reviews = view.records.filter(
-    (record) => record.entityType === "HumanReview"
   );
 
   return (
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Review</h2>
+          <h2 className="page-title">Content Production</h2>
           <p className="page-copy">
-            Record human review decisions through FTV-SVC-05. Approval remains
-            required before publishing preparation.
+            Create manual content packages from ready source assets, then mark
+            versions ready for human review through FTV-SVC-03.
           </p>
         </div>
       </header>
       <div className="grid">
-        <section className="panel" aria-labelledby="review-create-title">
-          <h2 className="panel-title" id="review-create-title">
-            Approve content
+        <section className="panel" aria-labelledby="content-create-title">
+          <h2 className="panel-title" id="content-create-title">
+            Create package
           </h2>
           <form
             className="form-stack"
-            action="/api/local/review-approval"
+            action="/api/local/content-production"
             method="post"
           >
             <label>
-              Content package
-              <select className="field" name="contentPackageId" required>
-                {packages.map((record) => (
-                  <option key={record.id} value={record.id}>
-                    {record.label} ({record.status})
+              Asset
+              <select className="field" name="assetId" required>
+                {assets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.label} ({asset.status})
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Reviewer
+              Title
               <input
                 className="field"
-                name="reviewerId"
-                placeholder="local-operator"
+                name="title"
+                placeholder="Manual brief title"
               />
             </label>
             <label>
-              Decision reason
+              Concept
               <textarea
                 className="field"
-                name="reason"
-                placeholder="Manual approval note"
+                name="concept"
+                placeholder="Manual content concept"
+              />
+            </label>
+            <label>
+              Caption
+              <textarea
+                className="field"
+                name="caption"
+                placeholder="Draft caption"
               />
             </label>
             <button
               className="button"
               type="submit"
-              disabled={packages.length === 0}
+              disabled={assets.length === 0}
             >
-              Approve For Publishing
+              Create Content Package
             </button>
           </form>
         </section>
-        <section className="panel" aria-labelledby="review-list-title">
-          <h2 className="panel-title" id="review-list-title">
-            Review decisions
+
+        <section className="panel" aria-labelledby="content-list-title">
+          <h2 className="panel-title" id="content-list-title">
+            Packages
           </h2>
-          <RecordList records={reviews} empty="No review decisions yet." />
+          <RecordList records={packages} empty="No content packages yet." />
         </section>
       </div>
     </>
