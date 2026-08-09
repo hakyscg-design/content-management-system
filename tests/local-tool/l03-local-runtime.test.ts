@@ -232,7 +232,7 @@ describe("L-03 local runtime persistence", () => {
       view.executionFlow.publishingPackages.find(
         (record) => record.id === publishingPackage?.id
       )?.nextAction
-    ).toBe("Manual publishing recorded");
+    ).toBe("Record performance feedback");
   });
 
   it("runs the complete execution workflow independently for multiple projects", async () => {
@@ -283,6 +283,160 @@ describe("L-03 local runtime persistence", () => {
     expect(
       syntheticView.executionFlow.publishingPackages.every(
         (record) => record.status === "completed"
+      )
+    ).toBe(true);
+  });
+
+  it("records manual performance feedback for completed publishing records", async () => {
+    const flow = await completeManualWorkflow(
+      "football-troll-vault",
+      "Performance workflow"
+    );
+
+    let view = await runtime.getLocalDashboardView();
+    const published = view.executionFlow.publishingPackages.find(
+      (record) => record.id === flow.publishingPackageId
+    );
+    expect(published?.canRecordPerformance).toBe(true);
+
+    const performance = await runtime.recordPerformanceFeedback({
+      publishingPackageId: flow.publishingPackageId,
+      source: "manual",
+      views: 1200,
+      likes: 90,
+      comments: 14,
+      shares: 8,
+      watchMinutes: 310,
+      narrative: "Manual analytics narrative",
+      learningSummary: "Manual learning summary"
+    });
+    expect(performance.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    expect(
+      view.records.filter((record) => record.entityType === "PerformanceFact")
+    ).toHaveLength(5);
+    expect(view.executionFlow.performanceFeedback.imports).toHaveLength(1);
+    expect(view.executionFlow.performanceFeedback.reports).toHaveLength(1);
+    expect(
+      view.executionFlow.performanceFeedback.learningSummaries
+    ).toHaveLength(1);
+    expect(
+      view.executionFlow.publishingPackages.find(
+        (record) => record.id === flow.publishingPackageId
+      )?.nextAction
+    ).toBe("Performance feedback recorded");
+
+    await runtime.resetLocalRuntimeForTests();
+    view = await runtime.getLocalDashboardView();
+    expect(
+      view.executionFlow.performanceFeedback.learningSummaries[0]?.label
+    ).toBe(`Learning summary for ${flow.publishingPackageId}`);
+  });
+
+  it("rejects premature or duplicate performance feedback", async () => {
+    const flow = await createReadyContentPackage("Performance guard");
+    const reviewed = await runtime.approveContentForReview({
+      contentPackageId: flow.contentPackageId
+    });
+    expect(reviewed.ok).toBe(true);
+    const prepared = await runtime.prepareManualPublishingPackage({
+      contentPackageId: flow.contentPackageId
+    });
+    expect(prepared.ok).toBe(true);
+
+    const view = await runtime.getLocalDashboardView();
+    const readyPackage = view.executionFlow.publishingPackages.find(
+      (record) => record.contentPackageId === flow.contentPackageId
+    );
+    expect(readyPackage?.canComplete).toBe(true);
+
+    const premature = await runtime.recordPerformanceFeedback({
+      publishingPackageId: readyPackage?.id ?? "",
+      views: 10
+    });
+    expect(premature.ok).toBe(false);
+    expect(premature.message).toContain("must be completed");
+
+    const completion = await runtime.completeManualPublishingPackage({
+      publishingPackageId: readyPackage?.id ?? ""
+    });
+    expect(completion.ok).toBe(true);
+
+    const emptyMetrics = await runtime.recordPerformanceFeedback({
+      publishingPackageId: readyPackage?.id ?? ""
+    });
+    expect(emptyMetrics.ok).toBe(false);
+    expect(emptyMetrics.message).toContain("At least one performance metric");
+
+    const firstFeedback = await runtime.recordPerformanceFeedback({
+      publishingPackageId: readyPackage?.id ?? "",
+      views: 10
+    });
+    expect(firstFeedback.ok).toBe(true);
+
+    const duplicateFeedback = await runtime.recordPerformanceFeedback({
+      publishingPackageId: readyPackage?.id ?? "",
+      views: 11
+    });
+    expect(duplicateFeedback.ok).toBe(false);
+    expect(duplicateFeedback.message).toContain(
+      "already has performance feedback"
+    );
+  });
+
+  it("isolates performance feedback between projects", async () => {
+    const ftvFlow = await completeManualWorkflow(
+      "football-troll-vault",
+      "FTV performance"
+    );
+    const syntheticFlow = await completeManualWorkflow(
+      "synthetic-project",
+      "Synthetic performance"
+    );
+    expect(ftvFlow.publishingPackageId).toBe(syntheticFlow.publishingPackageId);
+
+    const ftvFeedback = await runtime.recordPerformanceFeedback(
+      {
+        publishingPackageId: ftvFlow.publishingPackageId,
+        source: "manual",
+        views: 100,
+        likes: 20
+      },
+      { projectId: "football-troll-vault" }
+    );
+    expect(ftvFeedback.ok).toBe(true);
+
+    const syntheticFeedback = await runtime.recordPerformanceFeedback(
+      {
+        publishingPackageId: syntheticFlow.publishingPackageId,
+        source: "manual",
+        views: 200,
+        likes: 30
+      },
+      { projectId: "synthetic-project" }
+    );
+    expect(syntheticFeedback.ok).toBe(true);
+
+    const ftvView = await runtime.getLocalDashboardView({
+      projectId: "football-troll-vault"
+    });
+    expect(ftvView.executionFlow.performanceFeedback.imports).toHaveLength(1);
+    expect(
+      ftvView.records.some(
+        (record) => record.label === "Learning summary for l03-publishing-4"
+      )
+    ).toBe(true);
+
+    const syntheticView = await runtime.getLocalDashboardView({
+      projectId: "synthetic-project"
+    });
+    expect(
+      syntheticView.executionFlow.performanceFeedback.imports
+    ).toHaveLength(1);
+    expect(
+      syntheticView.records.some(
+        (record) => record.label === "Learning summary for l03-publishing-4"
       )
     ).toBe(true);
   });
