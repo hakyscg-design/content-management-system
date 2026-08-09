@@ -8,7 +8,11 @@ Repository: hakyscg-design/content-management-system
 
 PR: https://github.com/hakyscg-design/content-management-system/pull/1
 
-Release tag: pending until merge validation completes
+Release tag: `cms-feature-01-v1.0.0-freeze`
+
+Merged PR: https://github.com/hakyscg-design/content-management-system/pull/1
+
+Merge SHA: `e7b27bac3f9bf619840d01374b9010b352ae5002`
 
 ## Scope Released
 
@@ -37,14 +41,12 @@ Release tag: pending until merge validation completes
 
 ## Release Actions
 
-To be finalized after commit and merge:
-
-- PR ready for review.
-- PR merged to `main`.
-- Feature release tag created.
-- Main SHA recorded.
-- Tag SHA recorded.
+- PR ready for review: complete.
+- PR merged to `main`: complete.
+- Feature release tag created: complete as `cms-feature-01-v1.0.0-freeze`.
+- Main SHA recorded in operator handoff.
+- Tag recorded in operator handoff.
 
 ## Final Evidence
 
-This file is finalized before merge with validation evidence. The final main SHA and tag are recorded in the operator handoff after the merge and tag operations complete.
+This file records the validated Feature 01 release closure. The final main SHA and release tag are also recorded in the operator handoff after the evidence commit and tag operations complete.
