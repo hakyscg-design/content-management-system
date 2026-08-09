@@ -3,7 +3,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, relative } from "node:path";
 import process from "node:process";
 import { PrismaClient } from "@prisma/client";
-import { loadProjectConfig } from "@ftv/configuration";
+import {
+  listProjects,
+  loadProjectConfig,
+  resolveProject
+} from "@ftv/configuration";
 import { toSafeErrorOutput } from "@ftv/errors";
 import { createEntityReference } from "@ftv/identifiers";
 import type { CanonicalProject } from "@ftv/domain-types";
@@ -94,6 +98,10 @@ interface LocalRuntimeState {
   readonly mediaDir: string;
 }
 
+export interface LocalRuntimeOptions {
+  readonly projectId?: string;
+}
+
 interface PersistedRecordRow {
   readonly projectId: string;
   readonly id: string;
@@ -158,8 +166,18 @@ const routeSummaries: readonly LocalRouteSummary[] = Object.freeze([
   })
 ]);
 
-export async function getLocalDashboardView(): Promise<LocalDashboardView> {
-  const runtime = getLocalRuntimeState();
+export function listLocalProjects(): readonly CanonicalProject[] {
+  return listProjects();
+}
+
+export function resolveLocalProject(projectId: string): CanonicalProject {
+  return resolveProject(projectId);
+}
+
+export async function getLocalDashboardView(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalDashboardView> {
+  const runtime = getLocalRuntimeState(options);
   await ensureSeedData(runtime);
   const [records, media, lastOperation] = await Promise.all([
     runtime.prisma.localRecord.findMany({
@@ -222,8 +240,10 @@ export async function getLocalDashboardView(): Promise<LocalDashboardView> {
   });
 }
 
-export async function submitLocalAssetIntake(): Promise<LocalOperationResult> {
-  const runtime = getLocalRuntimeState();
+export async function submitLocalAssetIntake(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
   const sequence = await nextSequence(runtime);
   const sourceId = `l03-source-${sequence}`;
   const assetId = `l03-asset-${sequence}`;
@@ -284,8 +304,10 @@ export async function submitLocalAssetIntake(): Promise<LocalOperationResult> {
   }
 }
 
-export async function submitInvalidPublishingAttempt(): Promise<LocalOperationResult> {
-  const runtime = getLocalRuntimeState();
+export async function submitInvalidPublishingAttempt(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
   const sequence = await nextSequence(runtime);
 
   try {
@@ -316,8 +338,10 @@ export async function submitInvalidPublishingAttempt(): Promise<LocalOperationRe
   }
 }
 
-export async function addLocalMediaFixture(): Promise<LocalOperationResult> {
-  const runtime = getLocalRuntimeState();
+export async function addLocalMediaFixture(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
   const sequence = await nextSequence(runtime);
   const id = `l03-media-${sequence}`;
   const fileName = `${id}.txt`;
@@ -372,19 +396,35 @@ export async function addLocalMediaFixture(): Promise<LocalOperationResult> {
 export async function resetLocalRuntimeForTests(): Promise<void> {
   const holder = globalThis as typeof globalThis & {
     __ftvLocalRuntime?: LocalRuntimeState;
+    __ftvLocalRuntimes?: Map<string, LocalRuntimeState>;
   };
   if (holder.__ftvLocalRuntime) {
     await holder.__ftvLocalRuntime.prisma.$disconnect();
   }
+  if (holder.__ftvLocalRuntimes) {
+    await Promise.all(
+      Array.from(holder.__ftvLocalRuntimes.values()).map((runtime) =>
+        runtime.prisma.$disconnect()
+      )
+    );
+  }
   delete holder.__ftvLocalRuntime;
+  delete holder.__ftvLocalRuntimes;
 }
 
-function getLocalRuntimeState(): LocalRuntimeState {
+function getLocalRuntimeState(options: LocalRuntimeOptions = {}): LocalRuntimeState {
   const holder = globalThis as typeof globalThis & {
-    __ftvLocalRuntime?: LocalRuntimeState;
+    __ftvLocalRuntimes?: Map<string, LocalRuntimeState>;
   };
-  holder.__ftvLocalRuntime ??= createRuntime();
-  return holder.__ftvLocalRuntime;
+  holder.__ftvLocalRuntimes ??= new Map<string, LocalRuntimeState>();
+  const config = loadRuntimeConfig(options);
+  const runtimeKey = runtimeStateKey(config.project.id);
+  const existing = holder.__ftvLocalRuntimes.get(runtimeKey);
+  if (existing) return existing;
+
+  const runtime = createRuntime(options);
+  holder.__ftvLocalRuntimes.set(runtimeKey, runtime);
+  return runtime;
 }
 
 function findWorkspaceRoot(startDirectory: string): string {
@@ -407,9 +447,9 @@ function findWorkspaceRoot(startDirectory: string): string {
   }
 }
 
-function createRuntime(): LocalRuntimeState {
+function createRuntime(options: LocalRuntimeOptions = {}): LocalRuntimeState {
   const workspaceRoot = findWorkspaceRoot(process.cwd());
-  const config = loadProjectConfig();
+  const config = loadRuntimeConfig(options);
   const project = config.project;
   const configuredBaseDir =
     process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(project.id);
@@ -425,9 +465,6 @@ function createRuntime(): LocalRuntimeState {
 
   mkdirSync(databaseDir, { recursive: true });
   mkdirSync(mediaDir, { recursive: true });
-
-  process.env.FTV_LOCAL_BASE_DIR = baseRoot;
-  process.env.DATABASE_URL = databaseUrl;
 
   return {
     prisma: new PrismaClient({
@@ -735,4 +772,21 @@ function projectMediaRelativePath(projectId: string, fileName: string): string {
 export function readLocalMediaBytes(relativePath: string): Buffer {
   const runtime = getLocalRuntimeState();
   return readFileSync(safeLocalPath(runtime.baseDir, relativePath));
+}
+
+function runtimeStateKey(projectId: string): string {
+  const baseDir = process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(projectId);
+  return `${projectId}:${isAbsolute(baseDir) ? baseDir : normalize(baseDir)}`;
+}
+
+function loadRuntimeConfig(options: LocalRuntimeOptions) {
+  if (!options.projectId) {
+    return loadProjectConfig();
+  }
+
+  return loadProjectConfig({
+    overrides: {
+      project: resolveProject(options.projectId)
+    }
+  });
 }

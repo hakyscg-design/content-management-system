@@ -1,6 +1,8 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { Navigation } from "./navigation";
+import { Navigation } from "./navigation.js";
+import { getOperatorDashboardView } from "./project-context.js";
+import { ProjectSwitcher } from "./project-switcher.js";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,9 +10,11 @@ export const metadata: Metadata = {
   description: "Local operator console for the CMS production layer."
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
+  const view = await getOperatorDashboardView();
+
   return (
     <html lang="en">
       <body>
@@ -27,10 +31,10 @@ export default function RootLayout({
                   </p>
                 </div>
                 <div className="runtime-badge">
-                  L-03 persistent local runtime. Data and media persist across
-                  restarts.
+                  {view.project.name} - L-03 persistent local runtime.
                 </div>
               </div>
+              <ProjectSwitcher activeProjectId={view.project.id} />
               <Navigation />
             </div>
           </header>

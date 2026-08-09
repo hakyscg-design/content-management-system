@@ -29,6 +29,11 @@ describe("L-03 static boundaries", () => {
     );
     const routeFiles = appFiles.filter((file) => file.endsWith("route.ts"));
     const uiFiles = appFiles.filter((file) => !file.endsWith("route.ts"));
+    const projectContext = readFileSync(
+      join(root, "apps/operator-console/app/project-context.ts"),
+      "utf8"
+    );
+    expect(projectContext).toContain("@ftv/local-runtime");
 
     for (const file of uiFiles) {
       const source = readFileSync(file, "utf8");
@@ -39,7 +44,11 @@ describe("L-03 static boundaries", () => {
 
     for (const file of routeFiles) {
       const source = readFileSync(file, "utf8");
-      expect(source).toContain("@ftv/local-runtime");
+      expect(
+        source.includes("@ftv/local-runtime") ||
+          source.includes("project-context") ||
+          source.includes("resolveLocalProject")
+      ).toBe(true);
       expect(source).not.toContain("new SourceAssetRegistryService");
       expect(source).not.toContain("new PrismaClient");
       expect(source).not.toContain("writeFileSync");

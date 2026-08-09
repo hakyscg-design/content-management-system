@@ -137,6 +137,26 @@ describe("L-03 local runtime persistence", () => {
     expect(ftvView.lastOperation?.title).toBe("Local media stored");
   });
 
+  it("uses explicit project options without leaking operation state", async () => {
+    const ftvResult = await runtime.submitLocalAssetIntake({
+      projectId: "football-troll-vault"
+    });
+    expect(ftvResult.ok).toBe(true);
+
+    const syntheticView = await runtime.getLocalDashboardView({
+      projectId: "synthetic-project"
+    });
+    expect(syntheticView.project.id).toBe("synthetic-project");
+    expect(syntheticView.lastOperation).toBeUndefined();
+    expect(
+      syntheticView.records.some((record) => record.id === "l03-asset-1")
+    ).toBe(false);
+
+    await expect(
+      runtime.getLocalDashboardView({ projectId: "unknown-project" })
+    ).rejects.toThrow("Unknown CMS project: unknown-project.");
+  });
+
   it("records project identity in backups and rejects cross-project restore", async () => {
     const output = execSync("npm run backup", {
       cwd: process.cwd(),

@@ -1,11 +1,11 @@
-import { getLocalDashboardView } from "@ftv/local-runtime";
-import { AssetLibrary } from "./asset-library";
-import { LocalActions } from "./local-actions";
+import { AssetLibrary } from "./asset-library.js";
+import { LocalActions } from "./local-actions.js";
+import { getOperatorDashboardView } from "./project-context.js";
 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const view = await getLocalDashboardView();
+  const view = await getOperatorDashboardView();
 
   const assets = view.records.filter((record) => record.entityType === "Asset");
 
@@ -22,7 +22,9 @@ export default async function Page() {
       </header>
       <div className="notice">
         <strong>Persistent L-03 local runtime</strong>
-        <div>{view.warning}</div>
+        <div>
+          {view.project.name} is active. {view.warning}
+        </div>
       </div>
       <div className="grid">
         <section className="panel" aria-labelledby="records-title">

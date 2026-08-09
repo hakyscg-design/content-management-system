@@ -2,6 +2,8 @@
 const nextConfig = {
   transpilePackages: [
     "@ftv/local-runtime",
+    "@ftv/configuration",
+    "@ftv/domain-types",
     "@ftv/errors",
     "@ftv/identifiers",
     "@ftv/audit",
