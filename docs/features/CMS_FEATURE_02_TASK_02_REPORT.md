@@ -64,9 +64,9 @@ Task 2 base inspected: `e4f02266197af312b7b72785aff449496b61c8e3`
 
 ## Release Closure
 
-- PR ready for review: pending final GitHub action after this report commit.
-- PR merge to `main`: pending final GitHub action after this report commit.
-- Feature release tag: planned as `cms-feature-02-v1.0.0-freeze`.
+- PR ready for review: complete.
+- PR merge to `main`: complete at `6f0b1b939d5748d24feee63171cea2a4a58bca7b`.
+- Feature release tag: `cms-feature-02-v1.0.0-freeze`.
 - Freeze/release evidence: `release/CMS_FEATURE_02_RELEASE_EVIDENCE.md`.
 
 Final main SHA and tag SHA are recorded in the operator handoff after merge and tag creation.

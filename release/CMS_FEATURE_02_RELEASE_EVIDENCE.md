@@ -10,6 +10,8 @@ PR: https://github.com/hakyscg-design/content-management-system/pull/2
 
 Release tag: `cms-feature-02-v1.0.0-freeze`
 
+Merged PR SHA: `6f0b1b939d5748d24feee63171cea2a4a58bca7b`
+
 ## Scope Released
 
 - Operator-facing manual execution workspace for:
@@ -39,9 +41,9 @@ Release tag: `cms-feature-02-v1.0.0-freeze`
 
 ## Release Actions
 
-- PR ready for review: pending final GitHub action after evidence commit.
-- PR merged to `main`: pending final GitHub action after evidence commit.
-- Feature release tag created: pending final git action as `cms-feature-02-v1.0.0-freeze`.
+- PR ready for review: complete.
+- PR merged to `main`: complete.
+- Feature release tag created: complete as `cms-feature-02-v1.0.0-freeze`.
 - Final main SHA and tag SHA are recorded in the operator handoff after release closure.
 
 ## Excluded Scope
