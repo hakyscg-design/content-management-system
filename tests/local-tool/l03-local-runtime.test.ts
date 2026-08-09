@@ -48,6 +48,7 @@ describe("L-03 local runtime persistence", () => {
     expect(view.routes.map((route) => route.route)).toEqual([
       "/",
       "/source-assets",
+      "/content-production",
       "/workflow",
       "/review",
       "/publishing",
@@ -68,6 +69,220 @@ describe("L-03 local runtime persistence", () => {
         (record) =>
           record.id.startsWith("l03-asset-") &&
           record.ownerServiceId === "FTV-SVC-01"
+      )
+    ).toBe(true);
+  });
+
+  it("persists the manual source to publishing preparation workspace flow", async () => {
+    const assetResult = await runtime.createManualSourceAsset({
+      sourceUrl: "manual://operator/source-001",
+      label: "Operator source asset",
+      evidence: "Manual rights evidence"
+    });
+    expect(assetResult.ok).toBe(true);
+
+    let view = await runtime.getLocalDashboardView();
+    const assetRecord = view.records.find(
+      (record) =>
+        record.entityType === "Asset" &&
+        record.label === "Operator source asset"
+    );
+    expect(assetRecord).toBeDefined();
+    expect(assetRecord?.ownerServiceId).toBe("FTV-SVC-01");
+
+    const contentResult = await runtime.createContentProductionPackage({
+      assetId: assetRecord?.id ?? "",
+      title: "Operator content package",
+      concept: "Manual content concept",
+      caption: "Manual caption"
+    });
+    expect(contentResult.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const contentRecord = view.records.find(
+      (record) =>
+        record.entityType === "ContentPackage" &&
+        record.label === "Operator content package"
+    );
+    expect(contentRecord).toBeDefined();
+    expect(contentRecord?.ownerServiceId).toBe("FTV-SVC-03");
+    expect(contentRecord?.status).toBe("ready-for-review");
+
+    const reviewResult = await runtime.approveContentForReview({
+      contentPackageId: contentRecord?.id ?? "",
+      reviewerId: "operator-reviewer",
+      reason: "Manual approval"
+    });
+    expect(reviewResult.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const reviewRecord = view.records.find(
+      (record) =>
+        record.entityType === "HumanReview" &&
+        record.label === `Review for ${contentRecord?.id}`
+    );
+    expect(reviewRecord).toBeDefined();
+    expect(reviewRecord?.ownerServiceId).toBe("FTV-SVC-05");
+    expect(reviewRecord?.status).toBe("approved");
+
+    const publishingResult = await runtime.prepareManualPublishingPackage({
+      contentPackageId: contentRecord?.id ?? "",
+      destination: "manual-channel",
+      caption: "Final manual caption"
+    });
+    expect(publishingResult.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const publishingRecord = view.records.find(
+      (record) =>
+        record.entityType === "PublishingPackage" &&
+        record.label === `Manual package for ${contentRecord?.id}`
+    );
+    expect(publishingRecord).toBeDefined();
+    expect(publishingRecord?.ownerServiceId).toBe("FTV-SVC-04");
+    expect(publishingRecord?.status).toBe("ready");
+
+    const completionResult = await runtime.completeManualPublishingPackage({
+      publishingPackageId: publishingRecord?.id ?? "",
+      manualPublishingReference: "manual://published/operator-001"
+    });
+    expect(completionResult.ok).toBe(true);
+
+    await runtime.resetLocalRuntimeForTests();
+    view = await runtime.getLocalDashboardView();
+    const completedPackage = view.records.find(
+      (record) => record.id === publishingRecord?.id
+    );
+    expect(completedPackage?.status).toBe("completed");
+    expect(view.lastOperation?.title).toBe("Manual publishing recorded");
+  });
+
+  it("rejects premature or repeated workflow actions without mutating the next stage", async () => {
+    const flow = await createReadyContentPackage("Lifecycle guard");
+
+    const prematurePublishing = await runtime.prepareManualPublishingPackage({
+      contentPackageId: flow.contentPackageId,
+      destination: "manual"
+    });
+    expect(prematurePublishing.ok).toBe(false);
+    expect(prematurePublishing.message).toContain("Approved human review");
+
+    const duplicateContent = await runtime.createContentProductionPackage({
+      assetId: flow.assetId,
+      title: "Duplicate content package",
+      concept: "Duplicate concept"
+    });
+    expect(duplicateContent.ok).toBe(false);
+    expect(duplicateContent.message).toContain("already has a content package");
+
+    const review = await runtime.approveContentForReview({
+      contentPackageId: flow.contentPackageId,
+      reviewerId: "operator-reviewer"
+    });
+    expect(review.ok).toBe(true);
+
+    const duplicateReview = await runtime.approveContentForReview({
+      contentPackageId: flow.contentPackageId,
+      reviewerId: "operator-reviewer"
+    });
+    expect(duplicateReview.ok).toBe(false);
+    expect(duplicateReview.message).toContain("already has an approved review");
+
+    const publishing = await runtime.prepareManualPublishingPackage({
+      contentPackageId: flow.contentPackageId,
+      destination: "manual"
+    });
+    expect(publishing.ok).toBe(true);
+
+    const duplicatePublishing = await runtime.prepareManualPublishingPackage({
+      contentPackageId: flow.contentPackageId,
+      destination: "manual"
+    });
+    expect(duplicatePublishing.ok).toBe(false);
+    expect(duplicatePublishing.message).toContain(
+      "already has a publishing package"
+    );
+
+    let view = await runtime.getLocalDashboardView();
+    const publishingPackage = view.executionFlow.publishingPackages.find(
+      (record) => record.contentPackageId === flow.contentPackageId
+    );
+    expect(publishingPackage?.canComplete).toBe(true);
+
+    const completion = await runtime.completeManualPublishingPackage({
+      publishingPackageId: publishingPackage?.id ?? "",
+      manualPublishingReference: "manual://published/lifecycle-guard"
+    });
+    expect(completion.ok).toBe(true);
+
+    const duplicateCompletion = await runtime.completeManualPublishingPackage({
+      publishingPackageId: publishingPackage?.id ?? "",
+      manualPublishingReference: "manual://published/lifecycle-guard-again"
+    });
+    expect(duplicateCompletion.ok).toBe(false);
+    expect(duplicateCompletion.message).toContain("must be ready");
+
+    view = await runtime.getLocalDashboardView();
+    expect(
+      view.executionFlow.contentPackages.find(
+        (record) => record.id === flow.contentPackageId
+      )?.nextAction
+    ).toBe("Publishing package prepared");
+    expect(
+      view.executionFlow.publishingPackages.find(
+        (record) => record.id === publishingPackage?.id
+      )?.nextAction
+    ).toBe("Manual publishing recorded");
+  });
+
+  it("runs the complete execution workflow independently for multiple projects", async () => {
+    const ftvFlow = await completeManualWorkflow(
+      "football-troll-vault",
+      "FTV workflow"
+    );
+    const syntheticFlow = await completeManualWorkflow(
+      "synthetic-project",
+      "Synthetic workflow"
+    );
+
+    expect(ftvFlow.assetId).toBe(syntheticFlow.assetId);
+    expect(ftvFlow.publishingPackageId).toBe(syntheticFlow.publishingPackageId);
+
+    const ftvView = await runtime.getLocalDashboardView({
+      projectId: "football-troll-vault"
+    });
+    expect(ftvView.project.id).toBe("football-troll-vault");
+    expect(
+      ftvView.records.some((record) => record.label === "FTV workflow content")
+    ).toBe(true);
+    expect(
+      ftvView.records.some(
+        (record) => record.label === "Synthetic workflow content"
+      )
+    ).toBe(false);
+    expect(
+      ftvView.executionFlow.publishingPackages.every(
+        (record) => record.status === "completed"
+      )
+    ).toBe(true);
+
+    const syntheticView = await runtime.getLocalDashboardView({
+      projectId: "synthetic-project"
+    });
+    expect(syntheticView.project.id).toBe("synthetic-project");
+    expect(
+      syntheticView.records.some(
+        (record) => record.label === "Synthetic workflow content"
+      )
+    ).toBe(true);
+    expect(
+      syntheticView.records.some(
+        (record) => record.label === "FTV workflow content"
+      )
+    ).toBe(false);
+    expect(
+      syntheticView.executionFlow.publishingPackages.every(
+        (record) => record.status === "completed"
       )
     ).toBe(true);
   });
@@ -195,4 +410,145 @@ describe("L-03 local runtime persistence", () => {
       "backup project synthetic-project does not match active project football-troll-vault"
     );
   });
+
+  async function createReadyContentPackage(label: string): Promise<{
+    readonly assetId: string;
+    readonly contentPackageId: string;
+  }> {
+    const asset = await runtime.createManualSourceAsset({
+      label: `${label} asset`,
+      sourceUrl: `manual://source/${label.toLowerCase().replaceAll(" ", "-")}`,
+      evidence: `${label} evidence`
+    });
+    expect(asset.ok).toBe(true);
+
+    let view = await runtime.getLocalDashboardView();
+    const assetRecord = view.executionFlow.assets.find(
+      (record) => record.label === `${label} asset`
+    );
+    expect(assetRecord?.canCreateContent).toBe(true);
+
+    const content = await runtime.createContentProductionPackage({
+      assetId: assetRecord?.id ?? "",
+      title: `${label} content`,
+      concept: `${label} concept`,
+      caption: `${label} caption`
+    });
+    expect(content.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const contentRecord = view.executionFlow.contentPackages.find(
+      (record) => record.label === `${label} content`
+    );
+    expect(contentRecord?.canApprove).toBe(true);
+
+    return {
+      assetId: assetRecord?.id ?? "",
+      contentPackageId: contentRecord?.id ?? ""
+    };
+  }
+
+  async function completeManualWorkflow(
+    projectId: string,
+    label: string
+  ): Promise<{
+    readonly assetId: string;
+    readonly contentPackageId: string;
+    readonly publishingPackageId: string;
+  }> {
+    const flow = await createReadyContentPackageForProject(projectId, label);
+
+    const review = await runtime.approveContentForReview(
+      {
+        contentPackageId: flow.contentPackageId,
+        reviewerId: "operator-reviewer",
+        reason: `${label} approval`
+      },
+      { projectId }
+    );
+    expect(review.ok).toBe(true);
+
+    let view = await runtime.getLocalDashboardView({ projectId });
+    expect(
+      view.executionFlow.contentPackages.find(
+        (record) => record.id === flow.contentPackageId
+      )?.canPreparePublishing
+    ).toBe(true);
+
+    const publishing = await runtime.prepareManualPublishingPackage(
+      {
+        contentPackageId: flow.contentPackageId,
+        destination: "manual",
+        caption: `${label} final caption`
+      },
+      { projectId }
+    );
+    expect(publishing.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView({ projectId });
+    const publishingPackage = view.executionFlow.publishingPackages.find(
+      (record) => record.contentPackageId === flow.contentPackageId
+    );
+    expect(publishingPackage?.canComplete).toBe(true);
+
+    const completion = await runtime.completeManualPublishingPackage(
+      {
+        publishingPackageId: publishingPackage?.id ?? "",
+        manualPublishingReference: `manual://published/${projectId}/${label}`
+      },
+      { projectId }
+    );
+    expect(completion.ok).toBe(true);
+
+    return {
+      ...flow,
+      publishingPackageId: publishingPackage?.id ?? ""
+    };
+  }
+
+  async function createReadyContentPackageForProject(
+    projectId: string,
+    label: string
+  ): Promise<{
+    readonly assetId: string;
+    readonly contentPackageId: string;
+  }> {
+    const asset = await runtime.createManualSourceAsset(
+      {
+        label: `${label} asset`,
+        sourceUrl: `manual://source/${projectId}/${label}`,
+        evidence: `${label} evidence`
+      },
+      { projectId }
+    );
+    expect(asset.ok).toBe(true);
+
+    let view = await runtime.getLocalDashboardView({ projectId });
+    const assetRecord = view.executionFlow.assets.find(
+      (record) => record.label === `${label} asset`
+    );
+    expect(assetRecord?.canCreateContent).toBe(true);
+
+    const content = await runtime.createContentProductionPackage(
+      {
+        assetId: assetRecord?.id ?? "",
+        title: `${label} content`,
+        concept: `${label} concept`,
+        caption: `${label} caption`
+      },
+      { projectId }
+    );
+    expect(content.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView({ projectId });
+    const contentRecord = view.executionFlow.contentPackages.find(
+      (record) => record.label === `${label} content`
+    );
+    expect(contentRecord?.canApprove).toBe(true);
+
+    return {
+      assetId: assetRecord?.id ?? "",
+      contentPackageId: contentRecord?.id ?? ""
+    };
+  }
 });

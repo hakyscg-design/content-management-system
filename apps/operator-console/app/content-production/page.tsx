@@ -4,79 +4,86 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
-  const packages = view.executionFlow.contentPackages.filter(
-    (record) => record.canApprove
+  const assets = view.executionFlow.assets.filter(
+    (record) => record.canCreateContent
   );
-  const reviews = view.records.filter(
-    (record) => record.entityType === "HumanReview"
-  );
+  const packages = view.executionFlow.contentPackages;
 
   return (
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Review</h2>
+          <h2 className="page-title">Content Production</h2>
           <p className="page-copy">
-            Record manual review decisions. Approval remains required before
-            publishing preparation.
+            Create manual content packages from ready source assets, then mark
+            versions ready for human review.
           </p>
         </div>
       </header>
       <div className="grid">
-        <section className="panel" aria-labelledby="review-create-title">
-          <h2 className="panel-title" id="review-create-title">
-            Approve content
+        <section className="panel" aria-labelledby="content-create-title">
+          <h2 className="panel-title" id="content-create-title">
+            Create package
           </h2>
-          {packages.length === 0 ? (
+          {assets.length === 0 ? (
             <div className="empty">
-              No content packages are ready for review approval.
+              No ready assets are waiting for content production.
             </div>
           ) : null}
           <form
             className="form-stack"
-            action="/api/local/review-approval"
+            action="/api/local/content-production"
             method="post"
           >
             <label>
-              Content package
-              <select className="field" name="contentPackageId" required>
-                {packages.map((record) => (
-                  <option key={record.id} value={record.id}>
-                    {record.label}
+              Asset
+              <select className="field" name="assetId" required>
+                {assets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.label}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Reviewer
+              Title
               <input
                 className="field"
-                name="reviewerId"
-                placeholder="local-operator"
+                name="title"
+                placeholder="Manual brief title"
               />
             </label>
             <label>
-              Decision reason
+              Concept
               <textarea
                 className="field"
-                name="reason"
-                placeholder="Manual approval note"
+                name="concept"
+                placeholder="Manual content concept"
+              />
+            </label>
+            <label>
+              Caption
+              <textarea
+                className="field"
+                name="caption"
+                placeholder="Draft caption"
               />
             </label>
             <button
               className="button"
               type="submit"
-              disabled={packages.length === 0}
+              disabled={assets.length === 0}
             >
-              Approve For Publishing
+              Create Content Package
             </button>
           </form>
         </section>
-        <section className="panel" aria-labelledby="review-list-title">
-          <h2 className="panel-title" id="review-list-title">
-            Review decisions
+
+        <section className="panel" aria-labelledby="content-list-title">
+          <h2 className="panel-title" id="content-list-title">
+            Packages
           </h2>
-          <RecordList records={reviews} empty="No review decisions yet." />
+          <RecordList records={packages} empty="No content packages yet." />
         </section>
       </div>
     </>
@@ -91,6 +98,7 @@ function RecordList({
     readonly id: string;
     readonly label: string;
     readonly status: string;
+    readonly nextAction: string;
   }[];
   readonly empty: string;
 }) {
@@ -103,6 +111,7 @@ function RecordList({
           <strong>{record.label}</strong>
           <div className="meta">{record.id}</div>
           <div className="meta">State: {record.status}</div>
+          <div className="meta">Next: {record.nextAction}</div>
         </article>
       ))}
     </div>
