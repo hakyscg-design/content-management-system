@@ -246,6 +246,20 @@ textarea.field {
   margin-top: 10px;
 }
 
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.metric-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .button {
   min-height: 40px;
   border: 1px solid var(--accent);
