@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
@@ -7,12 +8,17 @@ import {
   rmSync,
   statSync
 } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 
 const root = process.cwd();
 const backupArg = process.argv[2];
-const localBase = process.env.FTV_LOCAL_BASE_DIR ?? ".ftv-local";
+const projectId = resolveProjectId(
+  process.env.CMS_PROJECT_ID ?? process.env.FTV_PROJECT_ID
+);
+const localBase =
+  process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(projectId);
+const localRoot = isAbsolute(localBase) ? localBase : join(root, localBase);
 
 if (!backupArg) {
   console.error("Restore failed: provide a backup directory path.");
@@ -28,22 +34,32 @@ if (!existsSync(manifestPath) || !existsSync(backupDatabase)) {
 }
 
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-if (manifest.schemaVersion !== "l03-20260731000100") {
+const supportedSchemaVersions = new Set([
+  "l03-20260731000100",
+  "cms-20260809000100"
+]);
+if (!supportedSchemaVersions.has(manifest.schemaVersion)) {
   console.error(
     `Restore failed: unsupported schema version ${manifest.schemaVersion ?? "<missing>"}.`
   );
   process.exit(1);
 }
+if ((manifest.projectId ?? "football-troll-vault") !== projectId) {
+  console.error(
+    `Restore failed: backup project ${manifest.projectId ?? "football-troll-vault"} does not match active project ${projectId}.`
+  );
+  process.exit(1);
+}
 
-const restoreTmp = join(root, localBase, "tmp", `restore-${Date.now()}`);
+const restoreTmp = join(localRoot, "tmp", `restore-${Date.now()}`);
 mkdirSync(restoreTmp, { recursive: true });
 copyFileSync(backupDatabase, join(restoreTmp, "ftv.sqlite"));
 copyTree(join(backupDir, "media"), join(restoreTmp, "media"));
 copyTree(join(backupDir, "config"), join(restoreTmp, "config"));
 
-const databaseDir = join(root, localBase, "database");
-const mediaDir = join(root, localBase, "media");
-const configDir = join(root, localBase, "config");
+const databaseDir = join(localRoot, "database");
+const mediaDir = join(localRoot, "media");
+const configDir = join(localRoot, "config");
 mkdirSync(databaseDir, { recursive: true });
 mkdirSync(mediaDir, { recursive: true });
 mkdirSync(configDir, { recursive: true });
@@ -51,6 +67,7 @@ mkdirSync(configDir, { recursive: true });
 copyFileSync(join(restoreTmp, "ftv.sqlite"), join(databaseDir, "ftv.sqlite"));
 replaceTree(join(restoreTmp, "media"), mediaDir);
 replaceTree(join(restoreTmp, "config"), configDir);
+runSetupMigration();
 
 console.log(`Restore completed from: ${backupDir}`);
 
@@ -70,4 +87,45 @@ function copyTree(source, destination) {
     if (statSync(from).isDirectory()) copyTree(from, to);
     else copyFileSync(from, to);
   }
+}
+
+function runSetupMigration() {
+  const result = spawnSync(process.execPath, ["scripts/local/setup.mjs"], {
+    cwd: root,
+    env: {
+      ...process.env,
+      CMS_PROJECT_ID: projectId,
+      FTV_LOCAL_BASE_DIR: localBase,
+      FTV_SKIP_PRISMA_GENERATE: "1"
+    },
+    encoding: "utf8"
+  });
+
+  if (result.status !== 0) {
+    console.error(result.stdout);
+    console.error(result.stderr);
+    console.error("Restore failed: setup migration did not complete.");
+    process.exit(result.status ?? 1);
+  }
+}
+
+function resolveProjectId(candidate) {
+  const projectId = candidate?.trim() || "football-troll-vault";
+  if (
+    projectId === "football-troll-vault" ||
+    projectId === "synthetic-project"
+  ) {
+    return projectId;
+  }
+
+  console.error(`Restore failed: unknown CMS project: ${projectId}.`);
+  process.exit(1);
+}
+
+function defaultBaseDirForProject(projectId) {
+  if (projectId === "football-troll-vault") {
+    return ".ftv-local";
+  }
+
+  return join(".cms-local", projectId);
 }

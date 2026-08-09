@@ -23,7 +23,7 @@ import {
 
 export const LOCAL_RUNTIME_KIND = "durable-sqlite-l03" as const;
 
-const schemaVersion = "l03-20260731000100";
+const schemaVersion = "cms-20260809000100";
 const operatorAction: ManualAction = Object.freeze({
   actorId: "local-operator",
   reason: "L-03 local operator action"
@@ -95,6 +95,7 @@ interface LocalRuntimeState {
 }
 
 interface PersistedRecordRow {
+  readonly projectId: string;
   readonly id: string;
   readonly ownerServiceId: string;
   readonly entityType: string;
@@ -103,6 +104,7 @@ interface PersistedRecordRow {
 }
 
 interface PersistedMediaRow {
+  readonly projectId: string;
   readonly id: string;
   readonly ownerServiceId: string;
   readonly fileName: string;
@@ -160,9 +162,18 @@ export async function getLocalDashboardView(): Promise<LocalDashboardView> {
   const runtime = getLocalRuntimeState();
   await ensureSeedData(runtime);
   const [records, media, lastOperation] = await Promise.all([
-    runtime.prisma.localRecord.findMany({ orderBy: { createdAt: "asc" } }),
-    runtime.prisma.localMedia.findMany({ orderBy: { createdAt: "asc" } }),
-    runtime.prisma.localOperation.findFirst({ orderBy: { createdAt: "desc" } })
+    runtime.prisma.localRecord.findMany({
+      where: { projectId: runtime.project.id },
+      orderBy: { createdAt: "asc" }
+    }),
+    runtime.prisma.localMedia.findMany({
+      where: { projectId: runtime.project.id },
+      orderBy: { createdAt: "asc" }
+    }),
+    runtime.prisma.localOperation.findFirst({
+      where: { projectId: runtime.project.id },
+      orderBy: { createdAt: "desc" }
+    })
   ]);
 
   return Object.freeze({
@@ -310,7 +321,7 @@ export async function addLocalMediaFixture(): Promise<LocalOperationResult> {
   const sequence = await nextSequence(runtime);
   const id = `l03-media-${sequence}`;
   const fileName = `${id}.txt`;
-  const relativePath = `media/${fileName}`;
+  const relativePath = projectMediaRelativePath(runtime.project.id, fileName);
   const absolutePath = safeLocalPath(runtime.baseDir, relativePath);
 
   if (existsSync(absolutePath)) {
@@ -331,6 +342,7 @@ export async function addLocalMediaFixture(): Promise<LocalOperationResult> {
 
   await runtime.prisma.localMedia.create({
     data: {
+      projectId: runtime.project.id,
       id,
       ownerServiceId: "FTV-SVC-02",
       fileName,
@@ -445,7 +457,12 @@ function createRuntime(): LocalRuntimeState {
 
 async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
   const seeded = await runtime.prisma.localConfig.findUnique({
-    where: { key: "l03.seeded" }
+    where: {
+      projectId_key: {
+        projectId: runtime.project.id,
+        key: "l03.seeded"
+      }
+    }
   });
   if (seeded) return;
 
@@ -504,9 +521,15 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
 
   await runtime.prisma.$transaction([
     runtime.prisma.localRecord.upsert({
-      where: { id: asset.id },
+      where: {
+        projectId_id: {
+          projectId: runtime.project.id,
+          id: asset.id
+        }
+      },
       update: {},
       create: {
+        projectId: runtime.project.id,
         id: asset.id,
         ownerServiceId: "FTV-SVC-01",
         entityType: "Asset",
@@ -516,9 +539,15 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
       }
     }),
     runtime.prisma.localRecord.upsert({
-      where: { id: contentPackage.id },
+      where: {
+        projectId_id: {
+          projectId: runtime.project.id,
+          id: contentPackage.id
+        }
+      },
       update: {},
       create: {
+        projectId: runtime.project.id,
         id: contentPackage.id,
         ownerServiceId: "FTV-SVC-03",
         entityType: "ContentPackage",
@@ -528,9 +557,15 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
       }
     }),
     runtime.prisma.localRecord.upsert({
-      where: { id: "l03-seed-review" },
+      where: {
+        projectId_id: {
+          projectId: runtime.project.id,
+          id: "l03-seed-review"
+        }
+      },
       update: {},
       create: {
+        projectId: runtime.project.id,
         id: "l03-seed-review",
         ownerServiceId: "FTV-SVC-05",
         entityType: "HumanReview",
@@ -540,14 +575,32 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
       }
     }),
     runtime.prisma.localConfig.upsert({
-      where: { key: "l03.seeded" },
+      where: {
+        projectId_key: {
+          projectId: runtime.project.id,
+          key: "l03.seeded"
+        }
+      },
       update: { value: "true" },
-      create: { key: "l03.seeded", value: "true" }
+      create: {
+        projectId: runtime.project.id,
+        key: "l03.seeded",
+        value: "true"
+      }
     }),
     runtime.prisma.localConfig.upsert({
-      where: { key: "schema.version" },
+      where: {
+        projectId_key: {
+          projectId: runtime.project.id,
+          key: "schema.version"
+        }
+      },
       update: { value: schemaVersion },
-      create: { key: "schema.version", value: schemaVersion }
+      create: {
+        projectId: runtime.project.id,
+        key: "schema.version",
+        value: schemaVersion
+      }
     })
   ]);
 }
@@ -560,7 +613,12 @@ async function upsertRecord(
   }
 ): Promise<void> {
   await runtime.prisma.localRecord.upsert({
-    where: { id: record.id },
+    where: {
+      projectId_id: {
+        projectId: runtime.project.id,
+        id: record.id
+      }
+    },
     update: {
       ownerServiceId: record.ownerServiceId,
       entityType: record.entityType,
@@ -569,6 +627,7 @@ async function upsertRecord(
       payload: record.payload
     },
     create: {
+      projectId: runtime.project.id,
       id: record.id,
       ownerServiceId: record.ownerServiceId,
       entityType: record.entityType,
@@ -581,12 +640,24 @@ async function upsertRecord(
 
 async function nextSequence(runtime: LocalRuntimeState): Promise<number> {
   const key = "operation.sequence";
-  const current = await runtime.prisma.localConfig.findUnique({ where: { key } });
+  const current = await runtime.prisma.localConfig.findUnique({
+    where: {
+      projectId_key: {
+        projectId: runtime.project.id,
+        key
+      }
+    }
+  });
   const next = Number.parseInt(current?.value ?? "0", 10) + 1;
   await runtime.prisma.localConfig.upsert({
-    where: { key },
+    where: {
+      projectId_key: {
+        projectId: runtime.project.id,
+        key
+      }
+    },
     update: { value: String(next) },
-    create: { key, value: String(next) }
+    create: { projectId: runtime.project.id, key, value: String(next) }
   });
   return next;
 }
@@ -598,6 +669,7 @@ async function recordOperation(
   const id = `operation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   await runtime.prisma.localOperation.create({
     data: {
+      projectId: runtime.project.id,
       id,
       ok: result.ok,
       title: result.title,
@@ -650,6 +722,14 @@ function defaultBaseDirForProject(projectId: string): string {
   }
 
   return join(".cms-local", projectId);
+}
+
+function projectMediaRelativePath(projectId: string, fileName: string): string {
+  if (projectId === "football-troll-vault") {
+    return `media/${fileName}`;
+  }
+
+  return `projects/${projectId}/media/${fileName}`;
 }
 
 export function readLocalMediaBytes(relativePath: string): Buffer {
