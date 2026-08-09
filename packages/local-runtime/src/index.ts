@@ -70,6 +70,34 @@ export interface LocalRouteSummary {
   readonly status: string;
 }
 
+export interface LocalExecutionAssetSummary extends LocalRecordSummary {
+  readonly hasContentPackage: boolean;
+  readonly canCreateContent: boolean;
+  readonly nextAction: string;
+}
+
+export interface LocalExecutionContentPackageSummary extends LocalRecordSummary {
+  readonly assetId: string;
+  readonly hasApprovedReview: boolean;
+  readonly hasPublishingPackage: boolean;
+  readonly canApprove: boolean;
+  readonly canPreparePublishing: boolean;
+  readonly nextAction: string;
+}
+
+export interface LocalExecutionPublishingPackageSummary
+  extends LocalRecordSummary {
+  readonly contentPackageId: string;
+  readonly canComplete: boolean;
+  readonly nextAction: string;
+}
+
+export interface LocalExecutionFlowSummary {
+  readonly assets: readonly LocalExecutionAssetSummary[];
+  readonly contentPackages: readonly LocalExecutionContentPackageSummary[];
+  readonly publishingPackages: readonly LocalExecutionPublishingPackageSummary[];
+}
+
 export interface LocalOperationResult {
   readonly ok: boolean;
   readonly title: string;
@@ -118,6 +146,7 @@ export interface LocalDashboardView {
   readonly records: readonly LocalRecordSummary[];
   readonly media: readonly LocalMediaSummary[];
   readonly routes: readonly LocalRouteSummary[];
+  readonly executionFlow: LocalExecutionFlowSummary;
   readonly lastOperation?: LocalOperationResult;
 }
 
@@ -240,13 +269,7 @@ export async function getLocalDashboardView(
       "L-03 uses SQLite and local filesystem storage. Data and media persist across local restarts.",
     records: Object.freeze(
       (records as PersistedRecordRow[]).map((record) =>
-        Object.freeze({
-  id: record.id,
-  ownerServiceId: record.ownerServiceId,
-  entityType: record.entityType,
-  label: record.label,
-  status: record.status
-})
+        toRecordSummary(record)
       )
     ),
     media: Object.freeze(
@@ -262,6 +285,7 @@ export async function getLocalDashboardView(
       )
     ),
     routes: routeSummaries,
+    executionFlow: buildExecutionFlow(records as PersistedRecordRow[]),
     ...(lastOperation
       ? {
           lastOperation: Object.freeze({
@@ -319,7 +343,7 @@ export async function createManualSourceAsset(
       "approved",
       operatorAction
     );
-    runtime.services.sourceAssetRegistry.markAssetReady(
+    const readyAsset = runtime.services.sourceAssetRegistry.markAssetReady(
       asset.id,
       operatorAction
     );
@@ -333,7 +357,7 @@ export async function createManualSourceAsset(
       ownerServiceId: "FTV-SVC-01",
       entityType: "Asset",
       label,
-      status: asset?.status ?? "unknown",
+      status: readyAsset.status,
       payload: toPayload({
         sourceId,
         sourceUrl,
@@ -363,6 +387,16 @@ export async function createContentProductionPackage(
 
   try {
     const assetRecord = await requirePersistedRecord(runtime, input.assetId, "Asset");
+    if (assetRecord.status !== "ready") {
+      throw new Error("Asset must be ready before content production.");
+    }
+    const existingContentPackage = await findContentRecordForAsset(
+      runtime,
+      assetRecord.id
+    );
+    if (existingContentPackage) {
+      throw new Error("Asset already has a content package in this project.");
+    }
     const briefId = `l03-brief-${sequence}`;
     const packageId = `l03-content-${sequence}`;
     const title = input.title?.trim() || `Manual brief for ${assetRecord.id}`;
@@ -437,6 +471,13 @@ export async function approveContentForReview(
       input.contentPackageId,
       "ContentPackage"
     );
+    if (contentRecord.status !== "ready-for-review") {
+      throw new Error("Content package must be ready for review before approval.");
+    }
+    const existingReview = await getApprovedReviewRecord(runtime, contentRecord.id);
+    if (existingReview) {
+      throw new Error("Content package already has an approved review.");
+    }
     const contentPayload = parsePayload(contentRecord.payload);
     const versionId = readPayloadString(contentPayload, "versionId");
     const reviewId = `l03-review-${sequence}`;
@@ -502,6 +543,18 @@ export async function prepareManualPublishingPackage(
       input.contentPackageId,
       "ContentPackage"
     );
+    if (contentRecord.status !== "ready-for-review") {
+      throw new Error(
+        "Content package must be ready for review before publishing preparation."
+      );
+    }
+    const existingPublishingPackage = await findPublishingRecordForContent(
+      runtime,
+      contentRecord.id
+    );
+    if (existingPublishingPackage) {
+      throw new Error("Content package already has a publishing package.");
+    }
     const contentPayload = parsePayload(contentRecord.payload);
     const versionId = readPayloadString(contentPayload, "versionId");
     const reviewRecord = await findApprovedReviewRecord(runtime, contentRecord.id);
@@ -583,6 +636,9 @@ export async function completeManualPublishingPackage(
       input.publishingPackageId,
       "PublishingPackage"
     );
+    if (publishingRecord.status !== "ready") {
+      throw new Error("Publishing package must be ready before completion.");
+    }
     const publishingPayload = parsePayload(publishingRecord.payload);
     const manualPublishingReference =
       input.manualPublishingReference?.trim() ||
@@ -1028,6 +1084,120 @@ async function upsertRecord(
   });
 }
 
+function buildExecutionFlow(
+  records: readonly PersistedRecordRow[]
+): LocalExecutionFlowSummary {
+  const contentByAssetId = new Map<string, PersistedRecordRow>();
+  const approvedReviewByContentId = new Map<string, PersistedRecordRow>();
+  const publishingByContentId = new Map<string, PersistedRecordRow>();
+
+  for (const record of records) {
+    const payload = parsePayload(record.payload);
+    if (record.entityType === "ContentPackage") {
+      contentByAssetId.set(readPayloadString(payload, "assetId", ""), record);
+    }
+    if (record.entityType === "HumanReview" && record.status === "approved") {
+      approvedReviewByContentId.set(
+        readPayloadString(payload, "contentPackageId", ""),
+        record
+      );
+    }
+    if (record.entityType === "PublishingPackage") {
+      publishingByContentId.set(
+        readPayloadString(payload, "contentPackageId", ""),
+        record
+      );
+    }
+  }
+
+  return Object.freeze({
+    assets: Object.freeze(
+      records
+        .filter((record) => record.entityType === "Asset")
+        .map((record) => {
+          const hasContentPackage = contentByAssetId.has(record.id);
+          const canCreateContent = record.status === "ready" && !hasContentPackage;
+          return Object.freeze({
+            ...toRecordSummary(record),
+            hasContentPackage,
+            canCreateContent,
+            nextAction: canCreateContent
+              ? "Create content package"
+              : hasContentPackage
+                ? "Content package created"
+                : "Asset must be ready"
+          });
+        })
+    ),
+    contentPackages: Object.freeze(
+      records
+        .filter((record) => record.entityType === "ContentPackage")
+        .map((record) => {
+          const payload = parsePayload(record.payload);
+          const assetId = readPayloadString(payload, "assetId", "");
+          const hasApprovedReview = approvedReviewByContentId.has(record.id);
+          const hasPublishingPackage = publishingByContentId.has(record.id);
+          const canApprove =
+            record.status === "ready-for-review" && !hasApprovedReview;
+          const canPreparePublishing =
+            record.status === "ready-for-review" &&
+            hasApprovedReview &&
+            !hasPublishingPackage;
+          return Object.freeze({
+            ...toRecordSummary(record),
+            assetId,
+            hasApprovedReview,
+            hasPublishingPackage,
+            canApprove,
+            canPreparePublishing,
+            nextAction: canApprove
+              ? "Record review approval"
+              : canPreparePublishing
+                ? "Prepare publishing package"
+                : hasPublishingPackage
+                  ? "Publishing package prepared"
+                  : hasApprovedReview
+                    ? "Ready for publishing preparation"
+                    : "Waiting for review"
+          });
+        })
+    ),
+    publishingPackages: Object.freeze(
+      records
+        .filter((record) => record.entityType === "PublishingPackage")
+        .map((record) => {
+          const payload = parsePayload(record.payload);
+          const contentPackageId = readPayloadString(
+            payload,
+            "contentPackageId",
+            ""
+          );
+          const canComplete = record.status === "ready";
+          return Object.freeze({
+            ...toRecordSummary(record),
+            contentPackageId,
+            canComplete,
+            nextAction: canComplete
+              ? "Record manual completion"
+              : record.status === "completed"
+                ? "Manual publishing recorded"
+                : "Complete publishing preparation"
+          });
+        })
+    )
+  });
+}
+
+function toRecordSummary(record: PersistedRecordRow): LocalRecordSummary {
+  return Object.freeze({
+    id: record.id,
+    ownerServiceId: record.ownerServiceId,
+    entityType: record.entityType,
+    label: record.label,
+    status: record.status
+  });
+}
+
 async function requirePersistedRecord(
   runtime: LocalRuntimeState,
   id: string,
@@ -1053,6 +1223,19 @@ async function findApprovedReviewRecord(
   runtime: LocalRuntimeState,
   contentPackageId: string
 ): Promise<PersistedRecordRow> {
+  const review = await getApprovedReviewRecord(runtime, contentPackageId);
+
+  if (!review) {
+    throw new Error("Approved human review was not found for content package.");
+  }
+
+  return review;
+}
+
+async function getApprovedReviewRecord(
+  runtime: LocalRuntimeState,
+  contentPackageId: string
+): Promise<PersistedRecordRow | undefined> {
   const reviews = (await runtime.prisma.localRecord.findMany({
     where: {
       projectId: runtime.project.id,
@@ -1067,11 +1250,45 @@ async function findApprovedReviewRecord(
     return readPayloadString(payload, "contentPackageId", "") === contentPackageId;
   });
 
-  if (!review) {
-    throw new Error("Approved human review was not found for content package.");
-  }
-
   return review;
+}
+
+async function findContentRecordForAsset(
+  runtime: LocalRuntimeState,
+  assetId: string
+): Promise<PersistedRecordRow | undefined> {
+  const contentPackages = (await runtime.prisma.localRecord.findMany({
+    where: {
+      projectId: runtime.project.id,
+      entityType: "ContentPackage"
+    },
+    orderBy: { createdAt: "desc" }
+  })) as PersistedRecordRow[];
+
+  return contentPackages.find((candidate) => {
+    const payload = parsePayload(candidate.payload);
+    return readPayloadString(payload, "assetId", "") === assetId;
+  });
+}
+
+async function findPublishingRecordForContent(
+  runtime: LocalRuntimeState,
+  contentPackageId: string
+): Promise<PersistedRecordRow | undefined> {
+  const publishingPackages = (await runtime.prisma.localRecord.findMany({
+    where: {
+      projectId: runtime.project.id,
+      entityType: "PublishingPackage"
+    },
+    orderBy: { createdAt: "desc" }
+  })) as PersistedRecordRow[];
+
+  return publishingPackages.find((candidate) => {
+    const payload = parsePayload(candidate.payload);
+    return (
+      readPayloadString(payload, "contentPackageId", "") === contentPackageId
+    );
+  });
 }
 
 async function nextSequence(runtime: LocalRuntimeState): Promise<number> {

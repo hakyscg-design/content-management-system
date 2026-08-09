@@ -4,12 +4,10 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
-  const packages = view.records.filter(
-    (record) => record.entityType === "ContentPackage"
+  const packages = view.executionFlow.contentPackages.filter(
+    (record) => record.canPreparePublishing
   );
-  const publishing = view.records.filter(
-    (record) => record.entityType === "PublishingPackage"
-  );
+  const publishing = view.executionFlow.publishingPackages;
 
   return (
     <>
@@ -17,7 +15,7 @@ export default async function Page() {
         <div>
           <h2 className="page-title">Publishing</h2>
           <p className="page-copy">
-            Prepare manual publishing packages through FTV-SVC-04. No autonomous
+            Prepare approved content for manual publishing. No autonomous
             platform publishing is performed.
           </p>
         </div>
@@ -27,6 +25,11 @@ export default async function Page() {
           <h2 className="panel-title" id="publishing-create-title">
             Prepare package
           </h2>
+          {packages.length === 0 ? (
+            <div className="empty">
+              No approved content is waiting for publishing preparation.
+            </div>
+          ) : null}
           <form
             className="form-stack"
             action="/api/local/publishing-preparation"
@@ -37,7 +40,7 @@ export default async function Page() {
               <select className="field" name="contentPackageId" required>
                 {packages.map((record) => (
                   <option key={record.id} value={record.id}>
-                    {record.label} ({record.status})
+                    {record.label}
                   </option>
                 ))}
               </select>
@@ -77,10 +80,9 @@ export default async function Page() {
                 <article className="record" key={record.id}>
                   <strong>{record.label}</strong>
                   <div className="meta">{record.id}</div>
-                  <div className="meta">
-                    {record.ownerServiceId} - {record.status}
-                  </div>
-                  {record.status === "ready" ? (
+                  <div className="meta">State: {record.status}</div>
+                  <div className="meta">Next: {record.nextAction}</div>
+                  {record.canComplete ? (
                     <form
                       className="inline-form"
                       action="/api/local/publishing-completion"

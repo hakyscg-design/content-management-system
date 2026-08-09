@@ -278,7 +278,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   <div className="meta">{record.id}</div>
 
                   <div className="meta">
-                    {record.ownerServiceId} - {record.status}
+                    {authorityLabel(record.ownerServiceId)} - {record.status}
                   </div>
                 </article>
               </button>
@@ -448,9 +448,11 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   marginBottom: "0.2rem"
                 }}
               >
-                Owner service
+                Authority
               </dt>
-              <dd style={{ margin: 0 }}>{selectedAsset.ownerServiceId}</dd>
+              <dd style={{ margin: 0 }}>
+                {authorityLabel(selectedAsset.ownerServiceId)}
+              </dd>
             </div>
 
             <div>
@@ -505,4 +507,22 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
       ) : null}
     </>
   );
+}
+
+function authorityLabel(ownerServiceId: string): string {
+  const labels: Record<string, string> = {
+    "FTV-SVC-01": "Source & Asset Registry",
+    "FTV-SVC-02": "Media Management",
+    "FTV-SVC-03": "Content Production",
+    "FTV-SVC-04": "Publishing Preparation",
+    "FTV-SVC-05": "Human Review",
+    "FTV-SVC-06": "Performance Data",
+    "FTV-SVC-07": "Analytics Reporting",
+    "FTV-SVC-08": "Workflow Orchestration",
+    "FTV-SVC-09": "Governance",
+    "FTV-SVC-10": "Configuration",
+    "FTV-SVC-11": "Core Data Administration"
+  };
+
+  return labels[ownerServiceId] ?? "CMS service";
 }

@@ -61,8 +61,8 @@ No autonomous publishing, AI, TKIC, Research Engine, platform API, or analytics 
 
 ## PR
 
-Draft PR: pending creation after commit and push.
+Draft PR: https://github.com/hakyscg-design/content-management-system/pull/2
 
 ## Ending SHA
 
-Pending final commit/push; recorded in the operator handoff.
+`e4f02266197af312b7b72785aff449496b61c8e3`

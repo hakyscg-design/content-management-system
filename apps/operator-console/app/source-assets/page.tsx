@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
-  const assets = view.records.filter((record) => record.entityType === "Asset");
+  const assets = view.executionFlow.assets;
 
   return (
     <>
@@ -12,8 +12,8 @@ export default async function Page() {
         <div>
           <h2 className="page-title">Source & Assets</h2>
           <p className="page-copy">
-            Capture approved manual sources and register ready assets through
-            FTV-SVC-01.
+            Capture approved manual sources and register assets for content
+            production.
           </p>
         </div>
       </header>
@@ -74,8 +74,8 @@ function RecordList({
   readonly records: readonly {
     readonly id: string;
     readonly label: string;
-    readonly ownerServiceId: string;
     readonly status: string;
+    readonly nextAction: string;
   }[];
   readonly empty: string;
 }) {
@@ -87,9 +87,8 @@ function RecordList({
         <article className="record" key={record.id}>
           <strong>{record.label}</strong>
           <div className="meta">{record.id}</div>
-          <div className="meta">
-            {record.ownerServiceId} - {record.status}
-          </div>
+          <div className="meta">State: {record.status}</div>
+          <div className="meta">Next: {record.nextAction}</div>
         </article>
       ))}
     </div>

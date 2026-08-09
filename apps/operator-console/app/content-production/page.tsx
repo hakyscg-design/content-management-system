@@ -4,10 +4,10 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
-  const assets = view.records.filter((record) => record.entityType === "Asset");
-  const packages = view.records.filter(
-    (record) => record.entityType === "ContentPackage"
+  const assets = view.executionFlow.assets.filter(
+    (record) => record.canCreateContent
   );
+  const packages = view.executionFlow.contentPackages;
 
   return (
     <>
@@ -16,7 +16,7 @@ export default async function Page() {
           <h2 className="page-title">Content Production</h2>
           <p className="page-copy">
             Create manual content packages from ready source assets, then mark
-            versions ready for human review through FTV-SVC-03.
+            versions ready for human review.
           </p>
         </div>
       </header>
@@ -25,6 +25,11 @@ export default async function Page() {
           <h2 className="panel-title" id="content-create-title">
             Create package
           </h2>
+          {assets.length === 0 ? (
+            <div className="empty">
+              No ready assets are waiting for content production.
+            </div>
+          ) : null}
           <form
             className="form-stack"
             action="/api/local/content-production"
@@ -35,7 +40,7 @@ export default async function Page() {
               <select className="field" name="assetId" required>
                 {assets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
-                    {asset.label} ({asset.status})
+                    {asset.label}
                   </option>
                 ))}
               </select>
@@ -92,8 +97,8 @@ function RecordList({
   readonly records: readonly {
     readonly id: string;
     readonly label: string;
-    readonly ownerServiceId: string;
     readonly status: string;
+    readonly nextAction: string;
   }[];
   readonly empty: string;
 }) {
@@ -105,9 +110,8 @@ function RecordList({
         <article className="record" key={record.id}>
           <strong>{record.label}</strong>
           <div className="meta">{record.id}</div>
-          <div className="meta">
-            {record.ownerServiceId} - {record.status}
-          </div>
+          <div className="meta">State: {record.status}</div>
+          <div className="meta">Next: {record.nextAction}</div>
         </article>
       ))}
     </div>

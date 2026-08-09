@@ -45,9 +45,7 @@ export default async function Page() {
                 <article className="record" key={media.id}>
                   <strong>{media.fileName}</strong>
                   <div className="meta">{media.relativePath}</div>
-                  <div className="meta">
-                    {media.ownerServiceId} - {media.byteSize} bytes
-                  </div>
+                  <div className="meta">{media.byteSize} bytes</div>
                 </article>
               ))}
             </div>

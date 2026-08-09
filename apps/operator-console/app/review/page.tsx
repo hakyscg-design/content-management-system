@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
-  const packages = view.records.filter(
-    (record) => record.entityType === "ContentPackage"
+  const packages = view.executionFlow.contentPackages.filter(
+    (record) => record.canApprove
   );
   const reviews = view.records.filter(
     (record) => record.entityType === "HumanReview"
@@ -17,8 +17,8 @@ export default async function Page() {
         <div>
           <h2 className="page-title">Review</h2>
           <p className="page-copy">
-            Record human review decisions through FTV-SVC-05. Approval remains
-            required before publishing preparation.
+            Record manual review decisions. Approval remains required before
+            publishing preparation.
           </p>
         </div>
       </header>
@@ -27,6 +27,11 @@ export default async function Page() {
           <h2 className="panel-title" id="review-create-title">
             Approve content
           </h2>
+          {packages.length === 0 ? (
+            <div className="empty">
+              No content packages are ready for review approval.
+            </div>
+          ) : null}
           <form
             className="form-stack"
             action="/api/local/review-approval"
@@ -37,7 +42,7 @@ export default async function Page() {
               <select className="field" name="contentPackageId" required>
                 {packages.map((record) => (
                   <option key={record.id} value={record.id}>
-                    {record.label} ({record.status})
+                    {record.label}
                   </option>
                 ))}
               </select>
@@ -85,7 +90,6 @@ function RecordList({
   readonly records: readonly {
     readonly id: string;
     readonly label: string;
-    readonly ownerServiceId: string;
     readonly status: string;
   }[];
   readonly empty: string;
@@ -98,9 +102,7 @@ function RecordList({
         <article className="record" key={record.id}>
           <strong>{record.label}</strong>
           <div className="meta">{record.id}</div>
-          <div className="meta">
-            {record.ownerServiceId} - {record.status}
-          </div>
+          <div className="meta">State: {record.status}</div>
         </article>
       ))}
     </div>
