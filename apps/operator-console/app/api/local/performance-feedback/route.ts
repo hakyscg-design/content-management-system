@@ -8,8 +8,6 @@ export async function POST(request: Request) {
   const input = {
     publishingPackageId: String(form.get("publishingPackageId") ?? ""),
     source: String(form.get("source") ?? ""),
-    narrative: String(form.get("narrative") ?? ""),
-    learningSummary: String(form.get("learningSummary") ?? ""),
     ...optionalNumberField("views", form.get("views")),
     ...optionalNumberField("likes", form.get("likes")),
     ...optionalNumberField("comments", form.get("comments")),

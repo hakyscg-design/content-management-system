@@ -287,7 +287,7 @@ describe("L-03 local runtime persistence", () => {
     ).toBe(true);
   });
 
-  it("records manual performance feedback for completed publishing records", async () => {
+  it("records manual performance feedback as explicit staged operator actions", async () => {
     const flow = await completeManualWorkflow(
       "football-troll-vault",
       "Performance workflow"
@@ -306,9 +306,7 @@ describe("L-03 local runtime persistence", () => {
       likes: 90,
       comments: 14,
       shares: 8,
-      watchMinutes: 310,
-      narrative: "Manual analytics narrative",
-      learningSummary: "Manual learning summary"
+      watchMinutes: 310
     });
     expect(performance.ok).toBe(true);
 
@@ -317,21 +315,43 @@ describe("L-03 local runtime persistence", () => {
       view.records.filter((record) => record.entityType === "PerformanceFact")
     ).toHaveLength(5);
     expect(view.executionFlow.performanceFeedback.imports).toHaveLength(1);
-    expect(view.executionFlow.performanceFeedback.reports).toHaveLength(1);
+    expect(view.executionFlow.performanceFeedback.reports).toHaveLength(0);
     expect(
       view.executionFlow.performanceFeedback.learningSummaries
-    ).toHaveLength(1);
+    ).toHaveLength(0);
+    const performanceImport = view.executionFlow.performanceFeedback.imports[0];
+    expect(performanceImport?.nextAction).toBe("Create analytics report");
     expect(
       view.executionFlow.publishingPackages.find(
         (record) => record.id === flow.publishingPackageId
       )?.nextAction
     ).toBe("Performance feedback recorded");
 
+    const report = await runtime.createManualAnalyticsReport({
+      performanceImportId: performanceImport?.id ?? "",
+      title: "Manual analytics report",
+      narrative: "Manual analytics narrative"
+    });
+    expect(report.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView();
+    const analyticsReport = view.executionFlow.performanceFeedback.reports[0];
+    expect(analyticsReport?.nextAction).toBe("Record learning summary");
+    expect(
+      view.executionFlow.performanceFeedback.learningSummaries
+    ).toHaveLength(0);
+
+    const learning = await runtime.recordManualLearningSummary({
+      reportId: analyticsReport?.id ?? "",
+      summary: "Manual learning summary"
+    });
+    expect(learning.ok).toBe(true);
+
     await runtime.resetLocalRuntimeForTests();
     view = await runtime.getLocalDashboardView();
     expect(
       view.executionFlow.performanceFeedback.learningSummaries[0]?.label
-    ).toBe(`Learning summary for ${flow.publishingPackageId}`);
+    ).toBe(`Learning summary for ${analyticsReport?.id}`);
   });
 
   it("rejects premature or duplicate performance feedback", async () => {
@@ -383,6 +403,60 @@ describe("L-03 local runtime persistence", () => {
     expect(duplicateFeedback.message).toContain(
       "already has performance feedback"
     );
+
+    let updatedView = await runtime.getLocalDashboardView();
+    const performanceImport =
+      updatedView.executionFlow.performanceFeedback.imports[0];
+
+    const missingNarrative = await runtime.createManualAnalyticsReport({
+      performanceImportId: performanceImport?.id ?? "",
+      narrative: ""
+    });
+    expect(missingNarrative.ok).toBe(false);
+    expect(missingNarrative.message).toContain(
+      "Analytics narrative is required"
+    );
+
+    const report = await runtime.createManualAnalyticsReport({
+      performanceImportId: performanceImport?.id ?? "",
+      narrative: "Manual report"
+    });
+    expect(report.ok).toBe(true);
+
+    const duplicateReport = await runtime.createManualAnalyticsReport({
+      performanceImportId: performanceImport?.id ?? "",
+      narrative: "Second report"
+    });
+    expect(duplicateReport.ok).toBe(false);
+    expect(duplicateReport.message).toContain(
+      "already has an analytics report"
+    );
+
+    updatedView = await runtime.getLocalDashboardView();
+    const analyticsReport =
+      updatedView.executionFlow.performanceFeedback.reports[0];
+
+    const missingSummary = await runtime.recordManualLearningSummary({
+      reportId: analyticsReport?.id ?? "",
+      summary: ""
+    });
+    expect(missingSummary.ok).toBe(false);
+    expect(missingSummary.message).toContain("Learning summary is required");
+
+    const summary = await runtime.recordManualLearningSummary({
+      reportId: analyticsReport?.id ?? "",
+      summary: "Manual learning"
+    });
+    expect(summary.ok).toBe(true);
+
+    const duplicateSummary = await runtime.recordManualLearningSummary({
+      reportId: analyticsReport?.id ?? "",
+      summary: "Second learning"
+    });
+    expect(duplicateSummary.ok).toBe(false);
+    expect(duplicateSummary.message).toContain(
+      "already has a learning summary"
+    );
   });
 
   it("isolates performance feedback between projects", async () => {
@@ -406,6 +480,10 @@ describe("L-03 local runtime persistence", () => {
       { projectId: "football-troll-vault" }
     );
     expect(ftvFeedback.ok).toBe(true);
+    await completeAnalyticsFeedback(
+      "football-troll-vault",
+      "FTV performance report"
+    );
 
     const syntheticFeedback = await runtime.recordPerformanceFeedback(
       {
@@ -417,6 +495,10 @@ describe("L-03 local runtime persistence", () => {
       { projectId: "synthetic-project" }
     );
     expect(syntheticFeedback.ok).toBe(true);
+    await completeAnalyticsFeedback(
+      "synthetic-project",
+      "Synthetic performance report"
+    );
 
     const ftvView = await runtime.getLocalDashboardView({
       projectId: "football-troll-vault"
@@ -424,7 +506,8 @@ describe("L-03 local runtime persistence", () => {
     expect(ftvView.executionFlow.performanceFeedback.imports).toHaveLength(1);
     expect(
       ftvView.records.some(
-        (record) => record.label === "Learning summary for l03-publishing-4"
+        (record) =>
+          record.label === "Learning summary for l03-analytics-report-6"
       )
     ).toBe(true);
 
@@ -436,7 +519,8 @@ describe("L-03 local runtime persistence", () => {
     ).toHaveLength(1);
     expect(
       syntheticView.records.some(
-        (record) => record.label === "Learning summary for l03-publishing-4"
+        (record) =>
+          record.label === "Learning summary for l03-analytics-report-6"
       )
     ).toBe(true);
   });
@@ -658,6 +742,37 @@ describe("L-03 local runtime persistence", () => {
       ...flow,
       publishingPackageId: publishingPackage?.id ?? ""
     };
+  }
+
+  async function completeAnalyticsFeedback(
+    projectId: string,
+    narrative: string
+  ): Promise<void> {
+    let view = await runtime.getLocalDashboardView({ projectId });
+    const performanceImport = view.executionFlow.performanceFeedback.imports[0];
+    expect(performanceImport?.nextAction).toBe("Create analytics report");
+
+    const report = await runtime.createManualAnalyticsReport(
+      {
+        performanceImportId: performanceImport?.id ?? "",
+        narrative
+      },
+      { projectId }
+    );
+    expect(report.ok).toBe(true);
+
+    view = await runtime.getLocalDashboardView({ projectId });
+    const analyticsReport = view.executionFlow.performanceFeedback.reports[0];
+    expect(analyticsReport?.nextAction).toBe("Record learning summary");
+
+    const learning = await runtime.recordManualLearningSummary(
+      {
+        reportId: analyticsReport?.id ?? "",
+        summary: `${narrative} learning`
+      },
+      { projectId }
+    );
+    expect(learning.ok).toBe(true);
   }
 
   async function createReadyContentPackageForProject(

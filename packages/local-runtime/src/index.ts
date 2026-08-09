@@ -168,7 +168,7 @@ export interface ManualPublishingCompletionInput {
   readonly manualPublishingReference?: string;
 }
 
-export interface PerformanceFeedbackInput {
+export interface PerformanceImportInput {
   readonly publishingPackageId: string;
   readonly source?: string;
   readonly views?: number;
@@ -176,8 +176,17 @@ export interface PerformanceFeedbackInput {
   readonly comments?: number;
   readonly shares?: number;
   readonly watchMinutes?: number;
-  readonly narrative?: string;
-  readonly learningSummary?: string;
+}
+
+export interface AnalyticsReportInput {
+  readonly performanceImportId: string;
+  readonly title?: string;
+  readonly narrative: string;
+}
+
+export interface LearningSummaryInput {
+  readonly reportId: string;
+  readonly summary: string;
 }
 
 export interface LocalDashboardView {
@@ -763,7 +772,7 @@ export async function completeManualPublishingPackage(
 }
 
 export async function recordPerformanceFeedback(
-  input: PerformanceFeedbackInput,
+  input: PerformanceImportInput,
   options: LocalRuntimeOptions = {}
 ): Promise<LocalOperationResult> {
   const runtime = getLocalRuntimeState(options);
@@ -794,8 +803,6 @@ export async function recordPerformanceFeedback(
     }
 
     const importId = `l03-performance-import-${sequence}`;
-    const reportId = `l03-analytics-report-${sequence}`;
-    const learningSummaryId = `l03-learning-summary-${sequence}`;
     const source = input.source?.trim() || "manual";
     const publishingRef = createVerifiedEntityReference({
       id: publishingRecord.id,
@@ -809,7 +816,6 @@ export async function recordPerformanceFeedback(
       operatorAction
     );
 
-    const factRefs: EntityReference[] = [];
     const factIds: string[] = [];
     for (const metric of metrics) {
       const metricDefinition = runtime.services.performanceData.defineMetric(
@@ -827,7 +833,6 @@ export async function recordPerformanceFeedback(
         operatorAction
       );
       factIds.push(fact.id);
-      factRefs.push(runtime.services.performanceData.performanceFactReference(fact.id));
 
       await upsertRecord(runtime, {
         id: fact.id,
@@ -863,11 +868,67 @@ export async function recordPerformanceFeedback(
       })
     });
 
-    const narrative =
-      input.narrative?.trim() || buildDefaultPerformanceNarrative(metrics);
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Performance metrics imported",
+      message: `Recorded performance import and ${factIds.length} facts for ${publishingRecord.id}.`
+    });
+  } catch (error) {
+    return recordOperation(
+      runtime,
+      safeFailure("Performance feedback rejected", error)
+    );
+  }
+}
+
+export async function createManualAnalyticsReport(
+  input: AnalyticsReportInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+  const sequence = await nextSequence(runtime);
+
+  try {
+    const importRecord = await requirePersistedRecord(
+      runtime,
+      input.performanceImportId,
+      "PerformanceImport"
+    );
+    if (importRecord.status !== "imported") {
+      throw new Error("Performance import must be imported before reporting.");
+    }
+    const existingReport = await findAnalyticsReportForImport(
+      runtime,
+      importRecord.id
+    );
+    if (existingReport) {
+      throw new Error("Performance import already has an analytics report.");
+    }
+
+    const narrative = input.narrative.trim();
+    if (!narrative) {
+      throw new Error("Analytics narrative is required.");
+    }
+
+    const importPayload = parsePayload(importRecord.payload);
+    const factIds = readPayloadStringArray(importPayload, "factIds");
+    if (factIds.length === 0) {
+      throw new Error("Analytics report requires performance facts.");
+    }
+
+    const factRefs = factIds.map((id) =>
+      createVerifiedEntityReference({
+        id,
+        ownerServiceId: "FTV-SVC-06",
+        entityType: "PerformanceFact"
+      })
+    );
+    const reportId = `l03-analytics-report-${sequence}`;
+    const title =
+      input.title?.trim() || `Analytics report for ${importRecord.label}`;
     const report = runtime.services.analyticsReporting.createReport(
       reportId,
-      `Analytics report for ${publishingRecord.id}`,
+      title,
       factRefs,
       narrative,
       operatorAction
@@ -879,43 +940,84 @@ export async function recordPerformanceFeedback(
       label: report.title,
       status: "reported",
       payload: toPayload({
-        performanceImportId: completedImport.id,
+        performanceImportId: importRecord.id,
         factIds,
         narrative
       })
     });
 
-    const summary =
-      input.learningSummary?.trim() || buildDefaultLearningSummary(metrics);
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Analytics report recorded",
+      message: `Created analytics report ${report.id} for ${importRecord.id}.`
+    });
+  } catch (error) {
+    return recordOperation(runtime, safeFailure("Analytics report rejected", error));
+  }
+}
+
+export async function recordManualLearningSummary(
+  input: LearningSummaryInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+  const sequence = await nextSequence(runtime);
+
+  try {
+    const reportRecord = await requirePersistedRecord(
+      runtime,
+      input.reportId,
+      "AnalyticsReport"
+    );
+    const existingSummary = await findLearningSummaryForReport(
+      runtime,
+      reportRecord.id
+    );
+    if (existingSummary) {
+      throw new Error("Analytics report already has a learning summary.");
+    }
+
+    const summary = input.summary.trim();
+    if (!summary) {
+      throw new Error("Learning summary is required.");
+    }
+
+    ensureAnalyticsReportInService(runtime, reportRecord);
+    const learningSummaryId = `l03-learning-summary-${sequence}`;
     const learningSummary =
       runtime.services.analyticsReporting.recordLearningSummary(
         learningSummaryId,
-        report.id,
+        reportRecord.id,
         summary,
         operatorAction
       );
+    const reportPayload = parsePayload(reportRecord.payload);
     await upsertRecord(runtime, {
       id: learningSummary.id,
       ownerServiceId: "FTV-SVC-07",
       entityType: "LearningSummary",
-      label: `Learning summary for ${publishingRecord.id}`,
+      label: `Learning summary for ${reportRecord.id}`,
       status: "recorded",
       payload: toPayload({
-        reportId: report.id,
-        performanceImportId: completedImport.id,
+        reportId: reportRecord.id,
+        performanceImportId: readPayloadString(
+          reportPayload,
+          "performanceImportId",
+          ""
+        ),
         summary
       })
     });
 
     return recordOperation(runtime, {
       ok: true,
-      title: "Performance feedback recorded",
-      message: `Recorded performance import, ${factIds.length} facts, analytics report, and learning summary for ${publishingRecord.id}.`
+      title: "Learning summary recorded",
+      message: `Recorded learning summary for ${reportRecord.id}.`
     });
   } catch (error) {
     return recordOperation(
       runtime,
-      safeFailure("Performance feedback rejected", error)
+      safeFailure("Learning summary rejected", error)
     );
   }
 }
@@ -1608,6 +1710,45 @@ async function findPerformanceImportForPublishing(
   });
 }
 
+async function findAnalyticsReportForImport(
+  runtime: LocalRuntimeState,
+  performanceImportId: string
+): Promise<PersistedRecordRow | undefined> {
+  const reports = (await runtime.prisma.localRecord.findMany({
+    where: {
+      projectId: runtime.project.id,
+      entityType: "AnalyticsReport"
+    },
+    orderBy: { createdAt: "desc" }
+  })) as PersistedRecordRow[];
+
+  return reports.find((candidate) => {
+    const payload = parsePayload(candidate.payload);
+    return (
+      readPayloadString(payload, "performanceImportId", "") ===
+      performanceImportId
+    );
+  });
+}
+
+async function findLearningSummaryForReport(
+  runtime: LocalRuntimeState,
+  reportId: string
+): Promise<PersistedRecordRow | undefined> {
+  const summaries = (await runtime.prisma.localRecord.findMany({
+    where: {
+      projectId: runtime.project.id,
+      entityType: "LearningSummary"
+    },
+    orderBy: { createdAt: "desc" }
+  })) as PersistedRecordRow[];
+
+  return summaries.find((candidate) => {
+    const payload = parsePayload(candidate.payload);
+    return readPayloadString(payload, "reportId", "") === reportId;
+  });
+}
+
 async function nextSequence(runtime: LocalRuntimeState): Promise<number> {
   const key = "operation.sequence";
   const current = await runtime.prisma.localConfig.findUnique({
@@ -1659,11 +1800,11 @@ function toPayload(value: unknown): string {
 }
 
 function normalizePerformanceMetrics(
-  input: PerformanceFeedbackInput
+  input: PerformanceImportInput
 ): readonly NormalizedPerformanceMetric[] {
   const definitions: readonly {
     readonly key: keyof Pick<
-      PerformanceFeedbackInput,
+      PerformanceImportInput,
       "views" | "likes" | "comments" | "shares" | "watchMinutes"
     >;
     readonly name: string;
@@ -1700,24 +1841,6 @@ function normalizePerformanceMetrics(
   );
 }
 
-function buildDefaultPerformanceNarrative(
-  metrics: readonly NormalizedPerformanceMetric[]
-): string {
-  return `Manual performance import recorded ${metrics.map((metric) => `${metric.name}: ${metric.value}`).join(", ")}.`;
-}
-
-function buildDefaultLearningSummary(
-  metrics: readonly NormalizedPerformanceMetric[]
-): string {
-  const strongestMetric = [...metrics].sort(
-    (first, second) => second.value - first.value
-  )[0];
-
-  return strongestMetric
-    ? `Manual learning summary: strongest recorded signal was ${strongestMetric.name.toLowerCase()} at ${strongestMetric.value}.`
-    : "Manual learning summary recorded.";
-}
-
 function parsePayload(payload: string): Readonly<Record<string, unknown>> {
   const parsed = JSON.parse(payload) as unknown;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -1739,6 +1862,23 @@ function readPayloadString(
 
   if (fallback !== undefined) {
     return fallback;
+  }
+
+  throw new Error(`Persisted record payload is missing ${key}.`);
+}
+
+function readPayloadStringArray(
+  payload: Readonly<Record<string, unknown>>,
+  key: string
+): readonly string[] {
+  const value = payload[key];
+  if (
+    Array.isArray(value) &&
+    value.every(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    )
+  ) {
+    return Object.freeze([...value]);
   }
 
   throw new Error(`Persisted record payload is missing ${key}.`);
@@ -1770,6 +1910,31 @@ function readPayloadEntityReference(
   }
 
   throw new Error(`Persisted record payload has invalid ${key}.`);
+}
+
+function ensureAnalyticsReportInService(
+  runtime: LocalRuntimeState,
+  reportRecord: PersistedRecordRow
+): void {
+  if (runtime.services.analyticsReporting.getReport(reportRecord.id)) return;
+
+  const payload = parsePayload(reportRecord.payload);
+  const factIds = readPayloadStringArray(payload, "factIds");
+  const factRefs = factIds.map((id) =>
+    createVerifiedEntityReference({
+      id,
+      ownerServiceId: "FTV-SVC-06",
+      entityType: "PerformanceFact"
+    })
+  );
+
+  runtime.services.analyticsReporting.createReport(
+    reportRecord.id,
+    reportRecord.label,
+    factRefs,
+    readPayloadString(payload, "narrative"),
+    operatorAction
+  );
 }
 
 function safeFailure(

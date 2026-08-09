@@ -64,6 +64,10 @@ export class AnalyticsReportingService {
     if (!this.reports.has(id)) throw validationError("Analytics report was not found.");
     return createVerifiedEntityReference({ id, ownerServiceId: this.serviceId, entityType: "AnalyticsReport" });
   }
+
+  getReport(id: string): AnalyticsReport | undefined {
+    return this.reports.get(id);
+  }
 }
 
 function requireManualAction(action: ManualAction): void {

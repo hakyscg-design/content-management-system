@@ -11,6 +11,12 @@ export default async function Page() {
     (record) => record.entityType === "PerformanceFact"
   );
   const feedback = view.executionFlow.performanceFeedback;
+  const importsReadyForReport = feedback.imports.filter(
+    (record) => !record.hasAnalyticsReport
+  );
+  const reportsReadyForLearning = feedback.reports.filter(
+    (record) => !record.hasLearningSummary
+  );
 
   return (
     <>
@@ -19,7 +25,8 @@ export default async function Page() {
           <h2 className="page-title">Performance & Analytics</h2>
           <p className="page-copy">
             Record manual performance facts for completed publishing packages,
-            then capture an analytics report and learning summary.
+            then write reports and learning summaries as explicit operator
+            actions.
           </p>
         </div>
       </header>
@@ -91,28 +98,116 @@ export default async function Page() {
                 />
               </label>
             </div>
+            <button
+              className="button"
+              type="submit"
+              disabled={readyForFeedback.length === 0}
+            >
+              Import Metrics
+            </button>
+          </form>
+        </section>
+
+        <section className="panel" aria-labelledby="report-create-title">
+          <h2 className="panel-title" id="report-create-title">
+            Create analytics report
+          </h2>
+          {importsReadyForReport.length === 0 ? (
+            <div className="empty">
+              No performance imports are waiting for an analytics report.
+            </div>
+          ) : null}
+          <form
+            className="form-stack"
+            action="/api/local/analytics-report"
+            method="post"
+          >
+            <label>
+              Performance import
+              <select
+                className="field"
+                name="performanceImportId"
+                required
+                disabled={importsReadyForReport.length === 0}
+              >
+                {importsReadyForReport.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Report title
+              <input
+                className="field"
+                name="title"
+                placeholder="Manual analytics report title"
+              />
+            </label>
             <label>
               Analytics narrative
               <textarea
                 className="field"
                 name="narrative"
                 placeholder="Manual interpretation of the imported facts"
-              />
-            </label>
-            <label>
-              Learning summary
-              <textarea
-                className="field"
-                name="learningSummary"
-                placeholder="Manual learning to carry into future work"
+                required
               />
             </label>
             <button
               className="button"
               type="submit"
-              disabled={readyForFeedback.length === 0}
+              disabled={importsReadyForReport.length === 0}
             >
-              Record Feedback
+              Create Report
+            </button>
+          </form>
+        </section>
+
+        <section className="panel" aria-labelledby="learning-create-title">
+          <h2 className="panel-title" id="learning-create-title">
+            Record learning summary
+          </h2>
+          {reportsReadyForLearning.length === 0 ? (
+            <div className="empty">
+              No analytics reports are waiting for a learning summary.
+            </div>
+          ) : null}
+          <form
+            className="form-stack"
+            action="/api/local/learning-summary"
+            method="post"
+          >
+            <label>
+              Analytics report
+              <select
+                className="field"
+                name="reportId"
+                required
+                disabled={reportsReadyForLearning.length === 0}
+              >
+                {reportsReadyForLearning.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Learning summary
+              <textarea
+                className="field"
+                name="summary"
+                placeholder="Manual learning to carry into future work"
+                required
+              />
+            </label>
+            <button
+              className="button"
+              type="submit"
+              disabled={reportsReadyForLearning.length === 0}
+            >
+              Record Learning
             </button>
           </form>
         </section>

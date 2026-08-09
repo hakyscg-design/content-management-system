@@ -20,7 +20,7 @@ Final status: `TASK 1 COMPLETE — AWAITING OPERATOR REVIEW`
   - `LearningSummary` owned by Analytics Reporting.
 - Preserved manual-first behavior:
   - Metrics are entered by the operator.
-  - Narrative and learning summary are manual text, with deterministic local defaults only when omitted.
+  - Narrative and learning summary were manual text in Task 1 and were split into explicit actions in Task 2.
   - No platform fetch, automatic metric import, AI analysis, TKIC, Research Engine, or market intelligence was added.
 
 ## Workflow
@@ -64,12 +64,13 @@ The operator flow is:
 ## Known Gaps
 
 - Feature 03 Task 1 does not integrate TKIC, Research Engine, Trend/Keyword/Market intelligence, AI-generated analysis, platform APIs, automatic metric fetching, or analytics expansion beyond the manual feedback workspace.
+- Task 2 superseded Task 1's bundled report/learning defaults by splitting metrics import, analytics report, and learning summary into explicit operator actions.
 - The PR remains draft for operator review.
 
 ## PR
 
-Draft PR: pending creation after commit and push.
+Draft PR: https://github.com/hakyscg-design/content-management-system/pull/3
 
 ## Ending SHA
 
-Pending final commit/push; recorded in the operator handoff.
+`8a62a919f221da1dcaf94619ad1de47c309663d1`
