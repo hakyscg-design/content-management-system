@@ -1,7 +1,7 @@
-import { getLocalDashboardView } from "@ftv/local-runtime";
+import { getOperatorDashboardView } from "../../../project-context.js";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json(await getLocalDashboardView());
+  return Response.json(await getOperatorDashboardView());
 }

@@ -1,4 +1,4 @@
-import { SectionPage } from "../section-page";
+import { SectionPage } from "../section-page.js";
 
 export const dynamic = "force-dynamic";
 

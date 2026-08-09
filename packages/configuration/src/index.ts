@@ -1,7 +1,10 @@
+import type { CanonicalProject, ProjectId } from "@ftv/domain-types";
+
 export type RuntimeEnvironment = "development" | "test" | "production";
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface ProjectConfig {
+  readonly project: CanonicalProject;
   readonly environment: RuntimeEnvironment;
   readonly logLevel: LogLevel;
   readonly serviceId?: string;
@@ -14,20 +17,57 @@ export interface ConfigSource {
 
 const runtimeEnvironments = new Set<RuntimeEnvironment>(["development", "test", "production"]);
 const logLevels = new Set<LogLevel>(["debug", "info", "warn", "error"]);
+export const DEFAULT_PROJECT_ID = "football-troll-vault" as const;
+
+const knownProjects = Object.freeze([
+  Object.freeze({
+    id: DEFAULT_PROJECT_ID,
+    name: "Football Troll Vault",
+    slug: DEFAULT_PROJECT_ID,
+    profilePath: "projects/football-troll-vault/PROJECT_PROFILE.md",
+    serviceNamespace: "FTV"
+  }),
+  Object.freeze({
+    id: "synthetic-project",
+    name: "Synthetic Project",
+    slug: "synthetic-project",
+    profilePath: "projects/synthetic-project/PROJECT_PROFILE.md",
+    serviceNamespace: "SYN"
+  })
+] satisfies readonly CanonicalProject[]);
 
 export function loadProjectConfig(source: ConfigSource = {}): ProjectConfig {
   const env = source.env ?? process.env;
+  const project =
+    source.overrides?.project ??
+    resolveProject(env.CMS_PROJECT_ID ?? env.FTV_PROJECT_ID);
   const environment = source.overrides?.environment ?? normalizeEnvironment(env.FTV_ENV);
   const logLevel = source.overrides?.logLevel ?? normalizeLogLevel(env.FTV_LOG_LEVEL);
   const serviceId = source.overrides?.serviceId ?? env.FTV_SERVICE_ID;
 
   const config: ProjectConfig = {
+    project,
     environment,
     logLevel,
     ...(serviceId ? { serviceId } : {})
   };
 
   return Object.freeze(config);
+}
+
+export function listProjects(): readonly CanonicalProject[] {
+  return knownProjects;
+}
+
+export function resolveProject(projectId: ProjectId | undefined): CanonicalProject {
+  const normalizedProjectId = projectId?.trim() || DEFAULT_PROJECT_ID;
+  const project = knownProjects.find((candidate) => candidate.id === normalizedProjectId);
+
+  if (!project) {
+    throw new Error(`Unknown CMS project: ${normalizedProjectId}.`);
+  }
+
+  return project;
 }
 
 function normalizeEnvironment(value: string | undefined): RuntimeEnvironment {

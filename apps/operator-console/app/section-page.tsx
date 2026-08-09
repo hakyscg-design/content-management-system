@@ -1,4 +1,4 @@
-import { getLocalDashboardView } from "@ftv/local-runtime";
+import { getOperatorDashboardView } from "./project-context.js";
 
 interface SectionPageProps {
   readonly title: string;
@@ -11,7 +11,7 @@ export async function SectionPage({
   description,
   route
 }: SectionPageProps) {
-  const view = await getLocalDashboardView();
+  const view = await getOperatorDashboardView();
   const trace = view.routes.find((item) => item.route === route);
 
   return (

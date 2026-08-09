@@ -3,8 +3,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, relative } from "node:path";
 import process from "node:process";
 import { PrismaClient } from "@prisma/client";
+import {
+  listProjects,
+  loadProjectConfig,
+  resolveProject
+} from "@ftv/configuration";
 import { toSafeErrorOutput } from "@ftv/errors";
 import { createEntityReference } from "@ftv/identifiers";
+import type { CanonicalProject } from "@ftv/domain-types";
 import { AnalyticsReportingService } from "@ftv/analytics-reporting";
 import { ContentProductionService } from "@ftv/content-production";
 import { CoreDataAdministrationService } from "@ftv/core-data-administration";
@@ -21,8 +27,7 @@ import {
 
 export const LOCAL_RUNTIME_KIND = "durable-sqlite-l03" as const;
 
-const schemaVersion = "l03-20260731000100";
-const defaultBaseDir = ".ftv-local";
+const schemaVersion = "cms-20260809000100";
 const operatorAction: ManualAction = Object.freeze({
   actorId: "local-operator",
   reason: "L-03 local operator action"
@@ -76,6 +81,7 @@ export interface LocalOperationResult {
 
 export interface LocalDashboardView {
   readonly runtimeKind: typeof LOCAL_RUNTIME_KIND;
+  readonly project: CanonicalProject;
   readonly persistence: "persistent";
   readonly warning: string;
   readonly records: readonly LocalRecordSummary[];
@@ -87,11 +93,17 @@ export interface LocalDashboardView {
 interface LocalRuntimeState {
   readonly services: LocalRuntimeServices;
   readonly prisma: PrismaClient;
+  readonly project: CanonicalProject;
   readonly baseDir: string;
   readonly mediaDir: string;
 }
 
+export interface LocalRuntimeOptions {
+  readonly projectId?: string;
+}
+
 interface PersistedRecordRow {
+  readonly projectId: string;
   readonly id: string;
   readonly ownerServiceId: string;
   readonly entityType: string;
@@ -100,6 +112,7 @@ interface PersistedRecordRow {
 }
 
 interface PersistedMediaRow {
+  readonly projectId: string;
   readonly id: string;
   readonly ownerServiceId: string;
   readonly fileName: string;
@@ -153,17 +166,37 @@ const routeSummaries: readonly LocalRouteSummary[] = Object.freeze([
   })
 ]);
 
-export async function getLocalDashboardView(): Promise<LocalDashboardView> {
-  const runtime = getLocalRuntimeState();
+export function listLocalProjects(): readonly CanonicalProject[] {
+  return listProjects();
+}
+
+export function resolveLocalProject(projectId: string): CanonicalProject {
+  return resolveProject(projectId);
+}
+
+export async function getLocalDashboardView(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalDashboardView> {
+  const runtime = getLocalRuntimeState(options);
   await ensureSeedData(runtime);
   const [records, media, lastOperation] = await Promise.all([
-    runtime.prisma.localRecord.findMany({ orderBy: { createdAt: "asc" } }),
-    runtime.prisma.localMedia.findMany({ orderBy: { createdAt: "asc" } }),
-    runtime.prisma.localOperation.findFirst({ orderBy: { createdAt: "desc" } })
+    runtime.prisma.localRecord.findMany({
+      where: { projectId: runtime.project.id },
+      orderBy: { createdAt: "asc" }
+    }),
+    runtime.prisma.localMedia.findMany({
+      where: { projectId: runtime.project.id },
+      orderBy: { createdAt: "asc" }
+    }),
+    runtime.prisma.localOperation.findFirst({
+      where: { projectId: runtime.project.id },
+      orderBy: { createdAt: "desc" }
+    })
   ]);
 
   return Object.freeze({
     runtimeKind: LOCAL_RUNTIME_KIND,
+    project: runtime.project,
     persistence: "persistent" as const,
     warning:
       "L-03 uses SQLite and local filesystem storage. Data and media persist across local restarts.",
@@ -207,8 +240,10 @@ export async function getLocalDashboardView(): Promise<LocalDashboardView> {
   });
 }
 
-export async function submitLocalAssetIntake(): Promise<LocalOperationResult> {
-  const runtime = getLocalRuntimeState();
+export async function submitLocalAssetIntake(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
   const sequence = await nextSequence(runtime);
   const sourceId = `l03-source-${sequence}`;
   const assetId = `l03-asset-${sequence}`;
@@ -269,8 +304,10 @@ export async function submitLocalAssetIntake(): Promise<LocalOperationResult> {
   }
 }
 
-export async function submitInvalidPublishingAttempt(): Promise<LocalOperationResult> {
-  const runtime = getLocalRuntimeState();
+export async function submitInvalidPublishingAttempt(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
   const sequence = await nextSequence(runtime);
 
   try {
@@ -301,12 +338,14 @@ export async function submitInvalidPublishingAttempt(): Promise<LocalOperationRe
   }
 }
 
-export async function addLocalMediaFixture(): Promise<LocalOperationResult> {
-  const runtime = getLocalRuntimeState();
+export async function addLocalMediaFixture(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
   const sequence = await nextSequence(runtime);
   const id = `l03-media-${sequence}`;
   const fileName = `${id}.txt`;
-  const relativePath = `media/${fileName}`;
+  const relativePath = projectMediaRelativePath(runtime.project.id, fileName);
   const absolutePath = safeLocalPath(runtime.baseDir, relativePath);
 
   if (existsSync(absolutePath)) {
@@ -327,6 +366,7 @@ export async function addLocalMediaFixture(): Promise<LocalOperationResult> {
 
   await runtime.prisma.localMedia.create({
     data: {
+      projectId: runtime.project.id,
       id,
       ownerServiceId: "FTV-SVC-02",
       fileName,
@@ -356,19 +396,35 @@ export async function addLocalMediaFixture(): Promise<LocalOperationResult> {
 export async function resetLocalRuntimeForTests(): Promise<void> {
   const holder = globalThis as typeof globalThis & {
     __ftvLocalRuntime?: LocalRuntimeState;
+    __ftvLocalRuntimes?: Map<string, LocalRuntimeState>;
   };
   if (holder.__ftvLocalRuntime) {
     await holder.__ftvLocalRuntime.prisma.$disconnect();
   }
+  if (holder.__ftvLocalRuntimes) {
+    await Promise.all(
+      Array.from(holder.__ftvLocalRuntimes.values()).map((runtime) =>
+        runtime.prisma.$disconnect()
+      )
+    );
+  }
   delete holder.__ftvLocalRuntime;
+  delete holder.__ftvLocalRuntimes;
 }
 
-function getLocalRuntimeState(): LocalRuntimeState {
+function getLocalRuntimeState(options: LocalRuntimeOptions = {}): LocalRuntimeState {
   const holder = globalThis as typeof globalThis & {
-    __ftvLocalRuntime?: LocalRuntimeState;
+    __ftvLocalRuntimes?: Map<string, LocalRuntimeState>;
   };
-  holder.__ftvLocalRuntime ??= createRuntime();
-  return holder.__ftvLocalRuntime;
+  holder.__ftvLocalRuntimes ??= new Map<string, LocalRuntimeState>();
+  const config = loadRuntimeConfig(options);
+  const runtimeKey = runtimeStateKey(config.project.id);
+  const existing = holder.__ftvLocalRuntimes.get(runtimeKey);
+  if (existing) return existing;
+
+  const runtime = createRuntime(options);
+  holder.__ftvLocalRuntimes.set(runtimeKey, runtime);
+  return runtime;
 }
 
 function findWorkspaceRoot(startDirectory: string): string {
@@ -391,10 +447,12 @@ function findWorkspaceRoot(startDirectory: string): string {
   }
 }
 
-function createRuntime(): LocalRuntimeState {
+function createRuntime(options: LocalRuntimeOptions = {}): LocalRuntimeState {
   const workspaceRoot = findWorkspaceRoot(process.cwd());
+  const config = loadRuntimeConfig(options);
+  const project = config.project;
   const configuredBaseDir =
-    process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDir;
+    process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(project.id);
 
   const baseRoot = isAbsolute(configuredBaseDir)
     ? configuredBaseDir
@@ -408,9 +466,6 @@ function createRuntime(): LocalRuntimeState {
   mkdirSync(databaseDir, { recursive: true });
   mkdirSync(mediaDir, { recursive: true });
 
-  process.env.FTV_LOCAL_BASE_DIR = baseRoot;
-  process.env.DATABASE_URL = databaseUrl;
-
   return {
     prisma: new PrismaClient({
       datasources: {
@@ -419,6 +474,7 @@ function createRuntime(): LocalRuntimeState {
         }
       }
     }),
+    project,
     baseDir: baseRoot,
     mediaDir,
     services: {
@@ -438,7 +494,12 @@ function createRuntime(): LocalRuntimeState {
 
 async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
   const seeded = await runtime.prisma.localConfig.findUnique({
-    where: { key: "l03.seeded" }
+    where: {
+      projectId_key: {
+        projectId: runtime.project.id,
+        key: "l03.seeded"
+      }
+    }
   });
   if (seeded) return;
 
@@ -497,9 +558,15 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
 
   await runtime.prisma.$transaction([
     runtime.prisma.localRecord.upsert({
-      where: { id: asset.id },
+      where: {
+        projectId_id: {
+          projectId: runtime.project.id,
+          id: asset.id
+        }
+      },
       update: {},
       create: {
+        projectId: runtime.project.id,
         id: asset.id,
         ownerServiceId: "FTV-SVC-01",
         entityType: "Asset",
@@ -509,9 +576,15 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
       }
     }),
     runtime.prisma.localRecord.upsert({
-      where: { id: contentPackage.id },
+      where: {
+        projectId_id: {
+          projectId: runtime.project.id,
+          id: contentPackage.id
+        }
+      },
       update: {},
       create: {
+        projectId: runtime.project.id,
         id: contentPackage.id,
         ownerServiceId: "FTV-SVC-03",
         entityType: "ContentPackage",
@@ -521,9 +594,15 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
       }
     }),
     runtime.prisma.localRecord.upsert({
-      where: { id: "l03-seed-review" },
+      where: {
+        projectId_id: {
+          projectId: runtime.project.id,
+          id: "l03-seed-review"
+        }
+      },
       update: {},
       create: {
+        projectId: runtime.project.id,
         id: "l03-seed-review",
         ownerServiceId: "FTV-SVC-05",
         entityType: "HumanReview",
@@ -533,14 +612,32 @@ async function ensureSeedData(runtime: LocalRuntimeState): Promise<void> {
       }
     }),
     runtime.prisma.localConfig.upsert({
-      where: { key: "l03.seeded" },
+      where: {
+        projectId_key: {
+          projectId: runtime.project.id,
+          key: "l03.seeded"
+        }
+      },
       update: { value: "true" },
-      create: { key: "l03.seeded", value: "true" }
+      create: {
+        projectId: runtime.project.id,
+        key: "l03.seeded",
+        value: "true"
+      }
     }),
     runtime.prisma.localConfig.upsert({
-      where: { key: "schema.version" },
+      where: {
+        projectId_key: {
+          projectId: runtime.project.id,
+          key: "schema.version"
+        }
+      },
       update: { value: schemaVersion },
-      create: { key: "schema.version", value: schemaVersion }
+      create: {
+        projectId: runtime.project.id,
+        key: "schema.version",
+        value: schemaVersion
+      }
     })
   ]);
 }
@@ -553,7 +650,12 @@ async function upsertRecord(
   }
 ): Promise<void> {
   await runtime.prisma.localRecord.upsert({
-    where: { id: record.id },
+    where: {
+      projectId_id: {
+        projectId: runtime.project.id,
+        id: record.id
+      }
+    },
     update: {
       ownerServiceId: record.ownerServiceId,
       entityType: record.entityType,
@@ -562,6 +664,7 @@ async function upsertRecord(
       payload: record.payload
     },
     create: {
+      projectId: runtime.project.id,
       id: record.id,
       ownerServiceId: record.ownerServiceId,
       entityType: record.entityType,
@@ -574,12 +677,24 @@ async function upsertRecord(
 
 async function nextSequence(runtime: LocalRuntimeState): Promise<number> {
   const key = "operation.sequence";
-  const current = await runtime.prisma.localConfig.findUnique({ where: { key } });
+  const current = await runtime.prisma.localConfig.findUnique({
+    where: {
+      projectId_key: {
+        projectId: runtime.project.id,
+        key
+      }
+    }
+  });
   const next = Number.parseInt(current?.value ?? "0", 10) + 1;
   await runtime.prisma.localConfig.upsert({
-    where: { key },
+    where: {
+      projectId_key: {
+        projectId: runtime.project.id,
+        key
+      }
+    },
     update: { value: String(next) },
-    create: { key, value: String(next) }
+    create: { projectId: runtime.project.id, key, value: String(next) }
   });
   return next;
 }
@@ -591,6 +706,7 @@ async function recordOperation(
   const id = `operation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   await runtime.prisma.localOperation.create({
     data: {
+      projectId: runtime.project.id,
       id,
       ok: result.ok,
       title: result.title,
@@ -637,7 +753,40 @@ function safeLocalPath(baseDir: string, relativePath: string): string {
   return target;
 }
 
+function defaultBaseDirForProject(projectId: string): string {
+  if (projectId === "football-troll-vault") {
+    return ".ftv-local";
+  }
+
+  return join(".cms-local", projectId);
+}
+
+function projectMediaRelativePath(projectId: string, fileName: string): string {
+  if (projectId === "football-troll-vault") {
+    return `media/${fileName}`;
+  }
+
+  return `projects/${projectId}/media/${fileName}`;
+}
+
 export function readLocalMediaBytes(relativePath: string): Buffer {
   const runtime = getLocalRuntimeState();
   return readFileSync(safeLocalPath(runtime.baseDir, relativePath));
+}
+
+function runtimeStateKey(projectId: string): string {
+  const baseDir = process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(projectId);
+  return `${projectId}:${isAbsolute(baseDir) ? baseDir : normalize(baseDir)}`;
+}
+
+function loadRuntimeConfig(options: LocalRuntimeOptions) {
+  if (!options.projectId) {
+    return loadProjectConfig();
+  }
+
+  return loadProjectConfig({
+    overrides: {
+      project: resolveProject(options.projectId)
+    }
+  });
 }

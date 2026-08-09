@@ -8,7 +8,8 @@ datasource db {
 }
 
 model LocalRecord {
-  id             String   @id
+  projectId      String
+  id             String
   ownerServiceId String
   entityType     String
   label          String
@@ -17,26 +18,31 @@ model LocalRecord {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@index([ownerServiceId])
-  @@index([entityType])
+  @@id([projectId, id])
+  @@index([projectId, ownerServiceId])
+  @@index([projectId, entityType])
 }
 
 model LocalMedia {
-  id             String   @id
+  projectId      String
+  id             String
   ownerServiceId String
   fileName       String
-  relativePath   String   @unique
+  relativePath   String
   contentType    String
   byteSize       Int
   sha256         String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@index([ownerServiceId])
+  @@id([projectId, id])
+  @@unique([projectId, relativePath])
+  @@index([projectId, ownerServiceId])
 }
 
 model LocalOperation {
-  id          String   @id
+  projectId   String
+  id          String
   title       String
   ok          Boolean
   message     String
@@ -44,10 +50,16 @@ model LocalOperation {
   category    String?
   payload     String
   createdAt   DateTime @default(now())
+
+  @@id([projectId, id])
+  @@index([projectId, createdAt])
 }
 
 model LocalConfig {
-  key       String   @id
+  projectId  String
+  key       String
   value     String
   updatedAt DateTime @updatedAt
+
+  @@id([projectId, key])
 }

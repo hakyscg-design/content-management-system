@@ -10,7 +10,11 @@ import process from "node:process";
 
 const root = process.cwd();
 const checks = [];
-const localBase = process.env.FTV_LOCAL_BASE_DIR ?? ".ftv-local";
+const projectId = resolveProjectId(
+  process.env.CMS_PROJECT_ID ?? process.env.FTV_PROJECT_ID
+);
+const localBase =
+  process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(projectId);
 const localRoot = isAbsolute(localBase) ? localBase : join(root, localBase);
 const databasePath = join(localRoot, "database", "ftv.sqlite");
 const databaseUrl = `file:${resolve(databasePath).replaceAll("\\", "/")}`;
@@ -83,7 +87,7 @@ for (const directory of [
 
 pass(
   "Environment configuration",
-  `FTV_LOCAL_HOST=${process.env.FTV_LOCAL_HOST ?? "localhost"}, FTV_LOCAL_PORT=${process.env.FTV_LOCAL_PORT ?? "3000"}`
+  `CMS_PROJECT_ID=${projectId}, FTV_LOCAL_HOST=${process.env.FTV_LOCAL_HOST ?? "localhost"}, FTV_LOCAL_PORT=${process.env.FTV_LOCAL_PORT ?? "3000"}`
 );
 
 if (existsSync(databasePath) && statSync(databasePath).isFile()) {
@@ -101,14 +105,18 @@ try {
     pass("SQLite connectivity", "Prisma Client query succeeded");
     const migrations = await prisma.$queryRawUnsafe(
       'SELECT "migration_name" FROM "_prisma_migrations" WHERE "migration_name" = ? LIMIT 1',
-      "20260731000100_l03_local_persistence"
+      "20260809000100_cms_project_scoped_local_persistence"
     );
     if (Array.isArray(migrations) && migrations.length > 0)
       pass(
         "Prisma migration status",
-        "20260731000100_l03_local_persistence applied"
+        "20260809000100_cms_project_scoped_local_persistence applied"
       );
-    else fail("Prisma migration status", "L-03 migration is not recorded");
+    else
+      fail(
+        "Prisma migration status",
+        "project-scoped CMS migration is not recorded"
+      );
   } finally {
     await prisma.$disconnect();
   }
@@ -125,4 +133,25 @@ for (const check of checks) {
 
 if (checks.some((check) => check.result === "FAIL")) {
   process.exit(1);
+}
+
+function resolveProjectId(candidate) {
+  const projectId = candidate?.trim() || "football-troll-vault";
+  if (
+    projectId === "football-troll-vault" ||
+    projectId === "synthetic-project"
+  ) {
+    return projectId;
+  }
+
+  fail("CMS project", `unknown CMS project: ${projectId}`);
+  return projectId;
+}
+
+function defaultBaseDirForProject(projectId) {
+  if (projectId === "football-troll-vault") {
+    return ".ftv-local";
+  }
+
+  return join(".cms-local", projectId);
 }

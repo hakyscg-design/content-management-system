@@ -78,6 +78,31 @@ input {
   white-space: nowrap;
 }
 
+.project-switcher {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.project-label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.project-select {
+  min-height: 38px;
+  min-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  color: var(--ink);
+  padding: 8px 10px;
+}
+
 .nav {
   display: flex;
   flex-wrap: wrap;
@@ -203,6 +228,11 @@ input {
   color: var(--accent-strong);
 }
 
+.button.compact {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
 .button:focus-visible,
 .nav-link:focus-visible {
   outline: 3px solid var(--focus);
@@ -246,6 +276,16 @@ input {
     display: inline-block;
     margin-top: 12px;
     white-space: normal;
+  }
+
+  .project-switcher {
+    align-items: stretch;
+  }
+
+  .project-label,
+  .project-select,
+  .project-switcher .button {
+    width: 100%;
   }
 
   .nav {

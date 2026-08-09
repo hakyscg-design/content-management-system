@@ -7,19 +7,24 @@ import {
   statSync,
   writeFileSync
 } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 import process from "node:process";
 
 const root = process.cwd();
-const localBase = process.env.FTV_LOCAL_BASE_DIR ?? ".ftv-local";
+const projectId = resolveProjectId(
+  process.env.CMS_PROJECT_ID ?? process.env.FTV_PROJECT_ID
+);
+const localBase =
+  process.env.FTV_LOCAL_BASE_DIR ?? defaultBaseDirForProject(projectId);
+const localRoot = isAbsolute(localBase) ? localBase : join(root, localBase);
 const timestamp = new Date()
   .toISOString()
   .replaceAll(":", "")
   .replaceAll(".", "");
-const backupDir = join(root, localBase, "backups", `backup-${timestamp}`);
-const databasePath = join(root, localBase, "database", "ftv.sqlite");
-const mediaDir = join(root, localBase, "media");
-const configDir = join(root, localBase, "config");
+const backupDir = join(localRoot, "backups", `backup-${timestamp}`);
+const databasePath = join(localRoot, "database", "ftv.sqlite");
+const mediaDir = join(localRoot, "media");
+const configDir = join(localRoot, "config");
 
 if (!existsSync(databasePath)) {
   console.error(
@@ -38,11 +43,12 @@ copyTree(configDir, join(backupDir, "config"));
 
 const manifest = {
   timestamp,
+  projectId,
   applicationVersion: JSON.parse(
     readFileSync(join(root, "package.json"), "utf8")
   ).version,
-  schemaVersion: "l03-20260731000100",
-  migrationVersion: "20260731000100_l03_local_persistence",
+  schemaVersion: "cms-20260809000100",
+  migrationVersion: "20260809000100_cms_project_scoped_local_persistence",
   database: "database/ftv.sqlite",
   media: "media",
   config: "config"
@@ -64,4 +70,25 @@ function copyTree(source, destination) {
     if (statSync(from).isDirectory()) copyTree(from, to);
     else copyFileSync(from, to);
   }
+}
+
+function resolveProjectId(candidate) {
+  const projectId = candidate?.trim() || "football-troll-vault";
+  if (
+    projectId === "football-troll-vault" ||
+    projectId === "synthetic-project"
+  ) {
+    return projectId;
+  }
+
+  console.error(`Backup failed: unknown CMS project: ${projectId}.`);
+  process.exit(1);
+}
+
+function defaultBaseDirForProject(projectId) {
+  if (projectId === "football-troll-vault") {
+    return ".ftv-local";
+  }
+
+  return join(".cms-local", projectId);
 }

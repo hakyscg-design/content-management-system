@@ -74,7 +74,11 @@ importers:
 
   packages/audit: {}
 
-  packages/configuration: {}
+  packages/configuration:
+    dependencies:
+      '@ftv/domain-types':
+        specifier: workspace:*
+        version: link:../domain-types
 
   packages/contracts: {}
 
@@ -89,12 +93,18 @@ importers:
       '@ftv/analytics-reporting':
         specifier: workspace:*
         version: link:../../services/analytics-reporting
+      '@ftv/configuration':
+        specifier: workspace:*
+        version: link:../configuration
       '@ftv/content-production':
         specifier: workspace:*
         version: link:../../services/content-production
       '@ftv/core-data-administration':
         specifier: workspace:*
         version: link:../../services/core-data-administration
+      '@ftv/domain-types':
+        specifier: workspace:*
+        version: link:../domain-types
       '@ftv/errors':
         specifier: workspace:*
         version: link:../errors
