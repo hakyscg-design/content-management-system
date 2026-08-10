@@ -194,6 +194,8 @@ export interface LocalProjectSettingsSummary {
   readonly defaultLocale: string;
   readonly policyNote: string;
   readonly updatedAt?: string;
+  readonly scope: "project";
+  readonly description: string;
 }
 
 export interface LocalGlobalCmsSettingsSummary {
@@ -204,6 +206,8 @@ export interface LocalGlobalCmsSettingsSummary {
   readonly logLevel: string;
   readonly serviceNamespace: string;
   readonly knownProjects: readonly string[];
+  readonly scope: "global";
+  readonly description: string;
 }
 
 export interface LocalRuntimeHealthSummary {
@@ -215,6 +219,7 @@ export interface LocalRuntimeHealthSummary {
 }
 
 export interface LocalStorageStatusSummary {
+  readonly scope: "project";
   readonly baseDir: string;
   readonly databasePath: string;
   readonly mediaDir: string;
@@ -236,6 +241,7 @@ export interface LocalBackupSummary {
 }
 
 export interface LocalAdministrationSummary {
+  readonly canonicalProjectProfile: CanonicalProject;
   readonly projectSettings: LocalProjectSettingsSummary;
   readonly globalSettings: LocalGlobalCmsSettingsSummary;
   readonly health: LocalRuntimeHealthSummary;
@@ -1824,6 +1830,9 @@ function buildAdministrationSummary(
       policyNote:
         configByKey.get(projectSettingKeys.policyNote)?.value ??
         "Manual-first CMS project operations.",
+      scope: "project" as const,
+      description:
+        "Local CMS operator preferences for the active project. These do not change the canonical project registry.",
       ...(latestProjectSettingsUpdate
         ? { updatedAt: new Date(latestProjectSettingsUpdate).toISOString() }
         : {})
@@ -1835,7 +1844,10 @@ function buildAdministrationSummary(
       environment: process.env.FTV_ENV ?? "development",
       logLevel: process.env.FTV_LOG_LEVEL ?? "info",
       serviceNamespace: runtime.project.serviceNamespace,
-      knownProjects: Object.freeze(listProjects().map((project) => project.id))
+      knownProjects: Object.freeze(listProjects().map((project) => project.id)),
+      scope: "global" as const,
+      description:
+        "Global CMS runtime metadata is read-only here and applies across project selection."
     }),
     health: Object.freeze({
       status: databaseExists ? "healthy" : "attention",
@@ -1847,6 +1859,7 @@ function buildAdministrationSummary(
       recentFailureCount
     }),
     storage: Object.freeze({
+      scope: "project" as const,
       baseDir: runtime.baseDir,
       databasePath,
       mediaDir: runtime.mediaDir,
@@ -1857,6 +1870,7 @@ function buildAdministrationSummary(
       mediaBytes: directorySize(runtime.mediaDir),
       backupCount: listProjectBackups(runtime).length
     }),
+    canonicalProjectProfile: runtime.project,
     backups: listProjectBackups(runtime),
     restoreGuidance:
       "Restore remains a guarded local operator action through npm run restore -- <backup-dir>; backup manifests must match the active project.",

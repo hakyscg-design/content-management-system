@@ -31,25 +31,38 @@ export default async function Page() {
       <div className="grid">
         <section className="panel" aria-labelledby="project-title">
           <h2 className="panel-title" id="project-title">
-            Active Project
+            Canonical Project Configuration
           </h2>
           <div className="record-list">
             <article className="record">
-              <strong>{view.project.name}</strong>
-              <div className="meta">ID: {view.project.id}</div>
-              <div className="meta">Slug: {view.project.slug}</div>
+              <strong>{administration.canonicalProjectProfile.name}</strong>
               <div className="meta">
-                Namespace: {view.project.serviceNamespace}
+                ID: {administration.canonicalProjectProfile.id}
               </div>
-              <div className="meta">Profile: {view.project.profilePath}</div>
+              <div className="meta">
+                Slug: {administration.canonicalProjectProfile.slug}
+              </div>
+              <div className="meta">
+                Namespace:{" "}
+                {administration.canonicalProjectProfile.serviceNamespace}
+              </div>
+              <div className="meta">
+                Profile: {administration.canonicalProjectProfile.profilePath}
+              </div>
+              <div className="meta">
+                This registry-backed identity is read-only in Administration.
+              </div>
             </article>
           </div>
         </section>
 
         <section className="panel" aria-labelledby="settings-title">
           <h2 className="panel-title" id="settings-title">
-            Project Settings
+            Local Operator Preferences
           </h2>
+          <div className="meta">
+            {administration.projectSettings.description}
+          </div>
           <form
             className="form-stack"
             action="/api/local/administration"
@@ -99,9 +112,15 @@ export default async function Page() {
           <h2 className="panel-title" id="global-title">
             Global CMS Settings
           </h2>
+          <div className="meta">
+            {administration.globalSettings.description}
+          </div>
           <div className="record-list">
             <article className="record">
               <strong>{administration.globalSettings.runtimeKind}</strong>
+              <div className="meta">
+                Scope: {administration.globalSettings.scope}
+              </div>
               <div className="meta">
                 Schema: {administration.globalSettings.schemaVersion}
               </div>
@@ -143,13 +162,14 @@ export default async function Page() {
 
         <section className="panel" aria-labelledby="storage-title">
           <h2 className="panel-title" id="storage-title">
-            Local Storage
+            Project-Scoped Local Storage
           </h2>
           <article className="record">
             <strong>
               Database{" "}
               {administration.storage.databaseExists ? "ready" : "missing"}
             </strong>
+            <div className="meta">Scope: {administration.storage.scope}</div>
             <div className="meta">Base: {administration.storage.baseDir}</div>
             <div className="meta">
               Database: {administration.storage.databasePath}
@@ -169,8 +189,12 @@ export default async function Page() {
 
         <section className="panel" aria-labelledby="backup-title">
           <h2 className="panel-title" id="backup-title">
-            Backup And Restore
+            Project Backup And Restore
           </h2>
+          <div className="meta">
+            Backup visibility is filtered to the active project. Global backup
+            policy is read-only here.
+          </div>
           <form
             className="inline-form"
             action="/api/local/administration"

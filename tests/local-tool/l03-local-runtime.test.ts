@@ -58,6 +58,18 @@ describe("L-03 local runtime persistence", () => {
     expect(view.administration.projectSettings.operatorLabel).toBe(
       "Football Troll Vault"
     );
+    expect(view.administration.canonicalProjectProfile.id).toBe(
+      "football-troll-vault"
+    );
+    expect(view.administration.projectSettings.scope).toBe("project");
+    expect(view.administration.projectSettings.description).toContain(
+      "do not change the canonical project registry"
+    );
+    expect(view.administration.globalSettings.scope).toBe("global");
+    expect(view.administration.globalSettings.description).toContain(
+      "applies across project selection"
+    );
+    expect(view.administration.storage.scope).toBe("project");
     expect(view.administration.globalSettings.knownProjects).toContain(
       "synthetic-project"
     );
@@ -94,6 +106,47 @@ describe("L-03 local runtime persistence", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.message).toContain("valid locale format");
+  });
+
+  it("isolates project administration preferences between projects", async () => {
+    const ftvResult = await runtime.updateProjectAdministrationSettings(
+      {
+        operatorLabel: "FTV Admin",
+        defaultLocale: "en-US",
+        policyNote: "FTV manual policy"
+      },
+      { projectId: "football-troll-vault" }
+    );
+    const syntheticResult = await runtime.updateProjectAdministrationSettings(
+      {
+        operatorLabel: "Synthetic Admin",
+        defaultLocale: "vi-VN",
+        policyNote: "Synthetic manual policy"
+      },
+      { projectId: "synthetic-project" }
+    );
+    expect(ftvResult.ok).toBe(true);
+    expect(syntheticResult.ok).toBe(true);
+
+    const ftvView = await runtime.getLocalDashboardView({
+      projectId: "football-troll-vault"
+    });
+    const syntheticView = await runtime.getLocalDashboardView({
+      projectId: "synthetic-project"
+    });
+    expect(ftvView.administration.projectSettings.operatorLabel).toBe(
+      "FTV Admin"
+    );
+    expect(ftvView.administration.projectSettings.defaultLocale).toBe("en-US");
+    expect(syntheticView.administration.projectSettings.operatorLabel).toBe(
+      "Synthetic Admin"
+    );
+    expect(syntheticView.administration.projectSettings.defaultLocale).toBe(
+      "vi-VN"
+    );
+    expect(syntheticView.administration.canonicalProjectProfile.id).toBe(
+      "synthetic-project"
+    );
   });
 
   it("creates active-project local backups and isolates backup visibility", async () => {
