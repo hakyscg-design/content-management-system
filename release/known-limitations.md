@@ -1,21 +1,21 @@
-# FTV v2 MVP Known Limitations
+# CMS v1.0 Known Limitations
 
 ## Accepted
 
-- MVP runtime is in-memory and intended for implementation validation, not production persistence.
+- CMS v1.0 is a local-first operator baseline, not a cloud deployment package.
 - Cross-service communication uses in-process command/event foundations.
 - Manual operation remains the primary path for publishing, imports, review, and recovery.
-- Release candidate packaging is documentation and validation focused.
+- Restore remains a guarded local CLI operator action; no browser-based restore picker is included.
 
 ## Deferred
 
-- Durable database schema and persistent storage.
 - Durable message bus or queue.
 - External platform connectors.
 - Autonomous publishing.
 - AI assistance, agents, or recommendation automation.
-- Production deployment, scaling, cloud infrastructure, and operational hardening.
+- TKIC and Research Engine integration.
+- Production deployment, scaling, and cloud infrastructure.
 
 ## Blockers
 
-None identified for MVP Release Candidate readiness.
+None identified for CMS v1.0 operator acceptance.

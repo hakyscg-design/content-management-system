@@ -1,6 +1,6 @@
 ﻿# CMS Current Implementation Status
 
-CMS-01 package candidate includes:
+CMS v1.0 accepted baseline includes:
 
 - Next.js operator console
 - local runtime composition boundary
@@ -10,9 +10,10 @@ CMS-01 package candidate includes:
 - setup and doctor commands
 - manual backup and restore commands
 - tests and validation scripts
-- FTV project profile
+- canonical project model with Football Troll Vault and synthetic project profiles
+- project-scoped execution, workflow, performance, administration, and backup visibility
 - historical FTV evidence and local-tool reports
 
-Current maturity: package candidate awaiting operator review. Not frozen.
+Current maturity: CMS v1.0 operator accepted, frozen, and released.
 
-Unresolved items are tracked in `docs/migration/CMS_01_UNRESOLVED_ITEMS.md`.
+No unresolved MVP operator blockers remain for the accepted v1.0 baseline.
