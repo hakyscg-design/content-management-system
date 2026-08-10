@@ -6,7 +6,7 @@ Repository: hakyscg-design/content-management-system
 
 Branch: feature/cms-mvp-operator-hardening
 
-PR: pending draft PR
+PR: https://github.com/hakyscg-design/content-management-system/pull/6
 
 Task 1 base inspected: `a64d36516445ed648f86ed3d83f5f6e1d8b951bd`
 
@@ -99,5 +99,5 @@ CMS is READY for final Operator Acceptance & v1.0 closure, subject to operator r
 
 ## Closure
 
-- Draft PR: pending.
+- Draft PR: https://github.com/hakyscg-design/content-management-system/pull/6
 - Ending SHA: recorded in the operator handoff after final commit and push.
