@@ -146,6 +146,8 @@ export interface LocalOperationSummary {
   readonly code?: string;
   readonly category?: string;
   readonly workflowRunId?: string;
+  readonly contextRoute: string;
+  readonly requiredAction: string;
   readonly createdAt: string;
   readonly canRecover: boolean;
 }
@@ -1145,13 +1147,13 @@ export async function recordWorkflowRecovery(
       targetRecordId: operation.id,
       recoveredOperationId: operation.id,
       note: input.note?.trim() || "Manual recovery reviewed by operator",
-      nextAction: "Recovery recorded"
+      nextAction: "Manual recovery confirmation recorded"
     });
 
     return recordOperation(runtime, {
       ok: true,
-      title: "Workflow recovery recorded",
-      message: `Recorded recovery workflow for failed operation ${operation.id}.`,
+      title: "Workflow recovery confirmation recorded",
+      message: `Recorded operator recovery confirmation for failed operation ${operation.id}; no owner-service business record was automatically changed.`,
       workflowRunId: completedWorkflow.id
     });
   } catch (error) {
@@ -1657,6 +1659,7 @@ function toOperationSummary(
 ): LocalOperationSummary {
   const payload = parsePayload(operation.payload);
   const workflowRunId = readPayloadString(payload, "workflowRunId", "");
+  const contextRoute = routeForOperationTitle(operation.title);
   return Object.freeze({
     id: operation.id,
     ok: operation.ok,
@@ -1665,6 +1668,8 @@ function toOperationSummary(
     ...(operation.code ? { code: operation.code } : {}),
     ...(operation.category ? { category: operation.category } : {}),
     ...(workflowRunId ? { workflowRunId } : {}),
+    contextRoute,
+    requiredAction: requiredActionForOperation(operation.title, contextRoute),
     createdAt: operation.createdAt.toISOString(),
     canRecover:
       !operation.ok &&
@@ -2249,6 +2254,33 @@ function routeForOperationTitle(title: string): string {
   }
 
   return "/workflow";
+}
+
+function requiredActionForOperation(title: string, route: string): string {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("asset")) {
+    return "Review source/asset details in the owner workspace, correct the manual input if needed, then record recovery confirmation.";
+  }
+  if (normalized.includes("content")) {
+    return "Review the content production record in the owner workspace, complete the valid owner-service action if needed, then record recovery confirmation.";
+  }
+  if (normalized.includes("review")) {
+    return "Review the human approval state in the owner workspace, complete the valid manual approval action if needed, then record recovery confirmation.";
+  }
+  if (normalized.includes("publishing")) {
+    return "Review publishing preparation in the owner workspace, complete only the valid manual publishing action if needed, then record recovery confirmation.";
+  }
+  if (
+    normalized.includes("performance") ||
+    normalized.includes("analytics") ||
+    normalized.includes("learning")
+  ) {
+    return "Review the performance workspace, complete the valid manual feedback/report/learning action if needed, then record recovery confirmation.";
+  }
+
+  return route === "/workflow"
+    ? "Review the failed operation and record recovery confirmation only after the operator has handled the issue outside workflow ownership."
+    : "Open the owner workspace, complete the valid manual action if needed, then record recovery confirmation.";
 }
 
 function safeFailure(

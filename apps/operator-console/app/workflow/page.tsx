@@ -14,8 +14,8 @@ export default async function Page() {
           <h2 className="page-title">Workflow</h2>
           <p className="page-copy">
             Monitor project-scoped execution, review failed operations, and
-            record safe manual recovery without taking ownership of business
-            records.
+            record manual recovery confirmation without changing owner-service
+            business records automatically.
           </p>
         </div>
       </header>
@@ -63,6 +63,17 @@ export default async function Page() {
                   {operation.code ? (
                     <div className="meta">Code: {operation.code}</div>
                   ) : null}
+                  <div className="meta">
+                    Required action: {operation.requiredAction}
+                  </div>
+                  <div className="actions">
+                    <Link
+                      className="button secondary compact"
+                      href={operation.contextRoute}
+                    >
+                      Open Owner Workspace
+                    </Link>
+                  </div>
                   {operation.canRecover ? (
                     <form
                       className="inline-form"
@@ -77,17 +88,25 @@ export default async function Page() {
                       <input
                         className="field"
                         name="note"
-                        placeholder="Manual recovery note"
+                        placeholder="What did the operator review or correct?"
+                        required
                       />
                       <button
                         className="button secondary compact"
                         type="submit"
                       >
-                        Record Recovery
+                        Record Recovery Confirmation
                       </button>
+                      <div className="meta">
+                        This records that the operator handled the failure. It
+                        does not retry or alter the owner-service business
+                        record.
+                      </div>
                     </form>
                   ) : (
-                    <div className="meta">Recovery already recorded.</div>
+                    <div className="meta">
+                      Recovery confirmation already recorded.
+                    </div>
                   )}
                 </article>
               ))}
@@ -135,6 +154,7 @@ function RecordList({
     readonly message?: string;
     readonly nextAction?: string;
     readonly targetRoute?: string;
+    readonly contextRoute?: string;
   }[];
   readonly empty: string;
 }) {

@@ -97,6 +97,8 @@ describe("L-03 local runtime persistence", () => {
       (operation) => operation.id === duplicate.operationId
     );
     expect(failedOperation?.canRecover).toBe(true);
+    expect(failedOperation?.contextRoute).toBe("/content-production");
+    expect(failedOperation?.requiredAction).toContain("owner-service action");
     expect(
       view.operationsControl.pendingActions.some(
         (action) => action.route === "/review"
@@ -109,6 +111,10 @@ describe("L-03 local runtime persistence", () => {
     });
     expect(recovery.ok).toBe(true);
     expect(recovery.workflowRunId).toContain("l03-recovery-");
+    expect(recovery.title).toBe("Workflow recovery confirmation recorded");
+    expect(recovery.message).toContain(
+      "no owner-service business record was automatically changed"
+    );
 
     view = await runtime.getLocalDashboardView();
     expect(
@@ -116,7 +122,8 @@ describe("L-03 local runtime persistence", () => {
         (run) =>
           run.targetRecordId === duplicate.operationId &&
           run.currentState === "completed" &&
-          run.targetRoute === "/content-production"
+          run.targetRoute === "/content-production" &&
+          run.nextAction === "Manual recovery confirmation recorded"
       )
     ).toBe(true);
     expect(
