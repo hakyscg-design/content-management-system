@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     contentType.includes("multipart/form-data")
   ) {
     const form = await request.formData();
-    const result = await createManualSourceAsset(
+    await createManualSourceAsset(
       {
         sourceUrl: String(form.get("sourceUrl") ?? ""),
         label: String(form.get("label") ?? ""),
@@ -19,7 +19,6 @@ export async function POST(request: Request) {
       },
       await getOperatorRuntimeOptions()
     );
-    if (!result.ok) return Response.json(result, { status: 400 });
     return Response.redirect(new URL("/source-assets", request.url), 303);
   }
 

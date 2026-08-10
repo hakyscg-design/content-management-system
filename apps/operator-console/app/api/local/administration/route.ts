@@ -22,18 +22,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const result =
-    action === "create-backup"
-      ? await createLocalProjectBackup(options)
-      : await updateProjectAdministrationSettings(
-          {
-            operatorLabel: String(form.get("operatorLabel") ?? ""),
-            defaultLocale: String(form.get("defaultLocale") ?? ""),
-            policyNote: String(form.get("policyNote") ?? "")
-          },
-          options
-        );
+  if (action === "create-backup") {
+    await createLocalProjectBackup(options);
+  } else {
+    await updateProjectAdministrationSettings(
+      {
+        operatorLabel: String(form.get("operatorLabel") ?? ""),
+        defaultLocale: String(form.get("defaultLocale") ?? ""),
+        policyNote: String(form.get("policyNote") ?? "")
+      },
+      options
+    );
+  }
 
-  if (!result.ok) return Response.json(result, { status: 400 });
   return Response.redirect(new URL("/administration", request.url), 303);
 }

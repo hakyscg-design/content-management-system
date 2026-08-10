@@ -480,7 +480,7 @@ export async function getLocalDashboardView(
     project: runtime.project,
     persistence: "persistent" as const,
     warning:
-      "L-03 uses SQLite and local filesystem storage. Data and media persist across local restarts.",
+      "The local runtime uses SQLite and local filesystem storage. Data and media persist across local restarts.",
     records: Object.freeze(recordRows.map((record) => toRecordSummary(record))),
     media: Object.freeze(
       (media as PersistedMediaRow[]).map((item) =>

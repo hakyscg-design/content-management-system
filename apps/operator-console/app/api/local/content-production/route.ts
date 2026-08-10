@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const form = await request.formData();
-  const result = await createContentProductionPackage(
+  await createContentProductionPackage(
     {
       assetId: String(form.get("assetId") ?? ""),
       title: String(form.get("title") ?? ""),
@@ -15,6 +15,5 @@ export async function POST(request: Request) {
     await getOperatorRuntimeOptions()
   );
 
-  if (!result.ok) return Response.json(result, { status: 400 });
   return Response.redirect(new URL("/content-production", request.url), 303);
 }

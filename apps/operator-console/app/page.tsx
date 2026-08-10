@@ -1,5 +1,6 @@
 import { AssetLibrary } from "./asset-library.js";
 import { LocalActions } from "./local-actions.js";
+import { OperationNotice } from "./operation-notice.js";
 import { getOperatorDashboardView } from "./project-context.js";
 
 export const dynamic = "force-dynamic";
@@ -21,11 +22,12 @@ export default async function Page() {
         </div>
       </header>
       <div className="notice">
-        <strong>Persistent L-03 local runtime</strong>
+        <strong>Persistent local runtime</strong>
         <div>
           {view.project.name} is active. {view.warning}
         </div>
       </div>
+      <OperationNotice operation={view.lastOperation} />
       <div className="grid">
         <section className="panel" aria-labelledby="records-title">
           <h2 className="panel-title" id="records-title">

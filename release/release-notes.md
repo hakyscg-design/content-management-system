@@ -1,31 +1,31 @@
-# FTV v2 MVP Release Candidate Notes
+# CMS v1.0 Release Notes
 
-## Release Candidate
+## Release
 
-`FTV-v2-MVP-1.0.0-RC1`
+`CMS-v1.0-OPERATOR-ACCEPTED`
 
 ## Purpose
 
-Football Troll Vault v2 MVP supports the content production layer from approved source/asset intake through manual publishing preparation, performance import, analytics reporting, governance, and operational traceability.
+CMS v1.0 supports local-first, manual-first content execution for active CMS projects from source/asset intake through content production, review, publishing preparation, manual publishing completion, performance import, analytics reporting, learning summary, workflow recovery, and administration.
 
 ## Implemented Scope
 
-- Workspace, repository, configuration, and test baseline.
-- Shared TypeScript foundation packages for identifiers, contracts, errors, configuration, logging, audit, utilities, and tests.
-- Runtime service modules for FTV-SVC-01 through FTV-SVC-09 and FTV-SVC-11.
-- Reference-only package boundary for FTV-SVC-10.
-- Owner-routed command/event integration and MVP flow coordination.
-- MVP verification evidence and release-candidate documentation.
+- CMS project model and active-project context.
+- Project-scoped SQLite persistence, local media storage, operation history, and backup visibility.
+- Operator console workspaces for Source & Assets, Content Production, Review, Publishing, Performance & Analytics, Workflow, and Administration.
+- Manual lifecycle validation and clear success/error feedback.
+- Owner-routed service execution with preserved human approval and manual publishing boundaries.
+- Multi-project isolation across the accepted Football Troll Vault project and a synthetic project.
 
 ## Excluded Scope
 
+- TKIC and Research Engine integration.
 - Autonomous publishing.
 - External platform connectors.
 - AI agents or recommendation automation.
 - Production deployment or cloud infrastructure.
 - Durable queue/message bus.
-- Database schema or persistent runtime storage.
 
 ## Release Status
 
-Ready for human release-candidate review. Production launch and post-MVP work are outside BE-06.
+Operator accepted, frozen, and released as the CMS v1.0 baseline. Production launch and post-MVP work remain outside this release.

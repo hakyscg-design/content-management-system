@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const form = await request.formData();
-  const result = await recordManualLearningSummary(
+  await recordManualLearningSummary(
     {
       reportId: String(form.get("reportId") ?? ""),
       summary: String(form.get("summary") ?? "")
@@ -13,6 +13,5 @@ export async function POST(request: Request) {
     await getOperatorRuntimeOptions()
   );
 
-  if (!result.ok) return Response.json(result, { status: 400 });
   return Response.redirect(new URL("/performance-analytics", request.url), 303);
 }

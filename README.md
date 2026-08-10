@@ -6,12 +6,12 @@ Football Troll Vault is retained as the first project profile under `projects/fo
 
 ## Status
 
-- CMS extraction: CMS-01 package candidate
+- CMS baseline: v1.0 operator accepted, frozen, and released
 - Source repository: `C:\repository-acquisition-framework`
 - Source accepted baseline HEAD: `a4630fd8eb1128f5d44bc5ad073ccf9ea6fd23b3`
 - Source accepted tag: `ftv-v2-mvp-accepted`
-- Local tool state included: L-01 frozen, L-02 frozen, current L-03 local persistence/storage work
-- CMS baseline: not frozen
+- Local runtime: persistent SQLite and local filesystem storage
+- Released feature baseline: CMS Features 01-06
 
 ## Prerequisites
 

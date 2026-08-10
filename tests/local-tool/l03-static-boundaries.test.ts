@@ -84,6 +84,46 @@ describe("L-03 static boundaries", () => {
     expect(navigation).not.toContain("AI");
   });
 
+  it("keeps operator workspaces on-page for action feedback", () => {
+    const workspacePages = [
+      "page.tsx",
+      "source-assets/page.tsx",
+      "content-production/page.tsx",
+      "review/page.tsx",
+      "publishing/page.tsx",
+      "performance-analytics/page.tsx",
+      "workflow/page.tsx",
+      "administration/page.tsx"
+    ];
+    for (const page of workspacePages) {
+      const source = readFileSync(
+        join(root, "apps/operator-console/app", page),
+        "utf8"
+      );
+      expect(source).toContain("OperationNotice");
+    }
+
+    const formRoutes = [
+      "asset-intake",
+      "content-production",
+      "review-approval",
+      "publishing-preparation",
+      "publishing-completion",
+      "performance-feedback",
+      "analytics-report",
+      "learning-summary",
+      "workflow-recovery",
+      "administration"
+    ];
+    for (const route of formRoutes) {
+      const source = readFileSync(
+        join(root, "apps/operator-console/app/api/local", route, "route.ts"),
+        "utf8"
+      );
+      expect(source).not.toContain("return Response.json(result");
+    }
+  });
+
   it("maps persisted models to accepted owner services", () => {
     const mapping = readFileSync(
       join(root, "docs/local-tool/L_03_PERSISTENCE_MAPPING.md"),

@@ -1,4 +1,4 @@
-# FTV v2 MVP Operational Guide
+# CMS v1.0 Operational Guide
 
 ## Prerequisites
 
@@ -31,18 +31,17 @@ pnpm test
 
 ## Manual Operation Paths
 
-| Area           | Manual Path                                                                              |
-| -------------- | ---------------------------------------------------------------------------------------- |
-| Asset          | Manual source capture, approval, asset registration, rights update, duplicate review     |
-| Media          | Manual processing job creation, start, completion, failure visibility, retry by operator |
-| Content        | Manual brief, package, and version creation                                              |
-| Review         | Manual review request, assignment, decision, rejection, approval, override reason        |
-| Publishing     | Manual checklist completion and manual publishing reference recording                    |
-| Performance    | Manual metric definition, import staging, fact recording, import completion              |
-| Analytics      | Manual report and learning summary creation                                              |
-| Workflow       | Manual workflow run start, step completion, failure, and completion                      |
-| Governance     | Manual role/relation setup, rule evaluation, audit event recording                       |
-| Administration | Manual non-authoritative inspection and display metadata configuration                   |
+| Area           | Manual Path                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| Project        | Select active CMS project from the operator console                                                             |
+| Asset          | Manual source capture and ready asset registration through Source & Assets                                      |
+| Content        | Manual content package creation through Content Production                                                      |
+| Review         | Manual human approval before publishing preparation                                                             |
+| Publishing     | Manual publishing package preparation and manual publishing completion reference recording                      |
+| Performance    | Manual performance metric import and fact recording for completed publishing packages                           |
+| Analytics      | Manual analytics report and learning summary creation                                                           |
+| Workflow       | Project-scoped pending actions, failure visibility, and manual recovery confirmation                            |
+| Administration | Canonical project visibility, local operator preferences, runtime health, storage visibility, and local backups |
 
 ## Fallback Procedures
 
@@ -54,4 +53,4 @@ pnpm test
 
 ## Production Boundary
 
-This release candidate is not a production deployment package. Deployment, scaling, cloud infrastructure, external connectors, and production launch decisions require a separate approved execution phase.
+CMS v1.0 is the accepted local operator baseline. Deployment, scaling, cloud infrastructure, external connectors, and production launch decisions require a separate approved execution phase.
