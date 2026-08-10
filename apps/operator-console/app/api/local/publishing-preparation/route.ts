@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const form = await request.formData();
-  const result = await prepareManualPublishingPackage(
+  await prepareManualPublishingPackage(
     {
       contentPackageId: String(form.get("contentPackageId") ?? ""),
       destination: String(form.get("destination") ?? ""),
@@ -14,6 +14,5 @@ export async function POST(request: Request) {
     await getOperatorRuntimeOptions()
   );
 
-  if (!result.ok) return Response.json(result, { status: 400 });
   return Response.redirect(new URL("/publishing", request.url), 303);
 }

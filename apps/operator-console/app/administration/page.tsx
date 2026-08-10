@@ -1,3 +1,4 @@
+import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 
 export const dynamic = "force-dynamic";
@@ -19,14 +20,7 @@ export default async function Page() {
         </div>
       </header>
 
-      {view.lastOperation ? (
-        <div
-          className={`notice ${view.lastOperation.ok ? "success" : "error"}`}
-        >
-          <strong>{view.lastOperation.title}</strong>
-          <div>{view.lastOperation.message}</div>
-        </div>
-      ) : null}
+      <OperationNotice operation={view.lastOperation} />
 
       <div className="grid">
         <section className="panel" aria-labelledby="project-title">

@@ -31,7 +31,7 @@ export default async function RootLayout({
                   </p>
                 </div>
                 <div className="runtime-badge">
-                  {view.project.name} - L-03 persistent local runtime.
+                  {view.project.name} - persistent local runtime.
                 </div>
               </div>
               <ProjectSwitcher activeProjectId={view.project.id} />

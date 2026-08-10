@@ -892,6 +892,96 @@ describe("L-03 local runtime persistence", () => {
     );
   });
 
+  it("validates the hardened daily operator lifecycle across projects and restart", async () => {
+    const ftvAdmin = await runtime.updateProjectAdministrationSettings(
+      {
+        operatorLabel: "Daily FTV Operator",
+        defaultLocale: "en-US",
+        policyNote: "Manual gates are required."
+      },
+      { projectId: "football-troll-vault" }
+    );
+    expect(ftvAdmin.ok).toBe(true);
+
+    const syntheticAdmin = await runtime.updateProjectAdministrationSettings(
+      {
+        operatorLabel: "Daily Synthetic Operator",
+        defaultLocale: "vi-VN",
+        policyNote: "Synthetic manual gates are required."
+      },
+      { projectId: "synthetic-project" }
+    );
+    expect(syntheticAdmin.ok).toBe(true);
+
+    const flow = await completeManualWorkflow(
+      "football-troll-vault",
+      "Daily hardening"
+    );
+    const performance = await runtime.recordPerformanceFeedback(
+      {
+        publishingPackageId: flow.publishingPackageId,
+        source: "manual",
+        views: 321,
+        likes: 12
+      },
+      { projectId: "football-troll-vault" }
+    );
+    expect(performance.ok).toBe(true);
+    await completeAnalyticsFeedback("football-troll-vault", "Daily report");
+
+    const duplicateContent = await runtime.createContentProductionPackage(
+      {
+        assetId: flow.assetId,
+        title: "Daily duplicate",
+        concept: "Duplicate"
+      },
+      { projectId: "football-troll-vault" }
+    );
+    expect(duplicateContent.ok).toBe(false);
+    expect(duplicateContent.operationId).toBeDefined();
+    const recovery = await runtime.recordWorkflowRecovery(
+      {
+        operationId: duplicateContent.operationId ?? "",
+        note: "Operator confirmed duplicate content handling."
+      },
+      { projectId: "football-troll-vault" }
+    );
+    expect(recovery.ok).toBe(true);
+
+    const backup = await runtime.createLocalProjectBackup({
+      projectId: "football-troll-vault"
+    });
+    expect(backup.ok).toBe(true);
+
+    await runtime.resetLocalRuntimeForTests();
+    const ftvView = await runtime.getLocalDashboardView({
+      projectId: "football-troll-vault"
+    });
+    const syntheticView = await runtime.getLocalDashboardView({
+      projectId: "synthetic-project"
+    });
+
+    expect(ftvView.administration.projectSettings.operatorLabel).toBe(
+      "Daily FTV Operator"
+    );
+    expect(syntheticView.administration.projectSettings.operatorLabel).toBe(
+      "Daily Synthetic Operator"
+    );
+    expect(
+      ftvView.executionFlow.performanceFeedback.learningSummaries
+    ).toHaveLength(1);
+    expect(ftvView.operationsControl.failedOperations[0]?.canRecover).toBe(
+      false
+    );
+    expect(ftvView.administration.backups).toHaveLength(1);
+    expect(
+      syntheticView.records.some((record) =>
+        record.label.includes("Daily hardening")
+      )
+    ).toBe(false);
+    expect(syntheticView.administration.backups).toHaveLength(0);
+  });
+
   async function createReadyContentPackage(label: string): Promise<{
     readonly assetId: string;
     readonly contentPackageId: string;

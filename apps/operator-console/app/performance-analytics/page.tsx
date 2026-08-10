@@ -1,3 +1,4 @@
+import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function Page() {
           </p>
         </div>
       </header>
+      <OperationNotice operation={view.lastOperation} />
 
       <div className="grid">
         <section className="panel" aria-labelledby="performance-create-title">
