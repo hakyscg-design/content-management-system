@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, normalize, relative } from "node:path";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync
+} from "node:fs";
+import { basename, dirname, isAbsolute, join, normalize, relative } from "node:path";
 import process from "node:process";
 import { PrismaClient } from "@prisma/client";
 import {
@@ -32,9 +40,15 @@ import {
 export const LOCAL_RUNTIME_KIND = "durable-sqlite-l03" as const;
 
 const schemaVersion = "cms-20260809000100";
+const migrationVersion = "20260809000100_cms_project_scoped_local_persistence";
 const operatorAction: ManualAction = Object.freeze({
   actorId: "local-operator",
   reason: "L-03 local operator action"
+});
+const projectSettingKeys = Object.freeze({
+  operatorLabel: "cms.project.operatorLabel",
+  defaultLocale: "cms.project.defaultLocale",
+  policyNote: "cms.project.policyNote"
 });
 
 export interface LocalRuntimeServices {
@@ -175,6 +189,62 @@ export interface LocalOperationsControlSummary {
   readonly failedOperations: readonly LocalOperationSummary[];
 }
 
+export interface LocalProjectSettingsSummary {
+  readonly operatorLabel: string;
+  readonly defaultLocale: string;
+  readonly policyNote: string;
+  readonly updatedAt?: string;
+}
+
+export interface LocalGlobalCmsSettingsSummary {
+  readonly runtimeKind: typeof LOCAL_RUNTIME_KIND;
+  readonly schemaVersion: string;
+  readonly migrationVersion: string;
+  readonly environment: string;
+  readonly logLevel: string;
+  readonly serviceNamespace: string;
+  readonly knownProjects: readonly string[];
+}
+
+export interface LocalRuntimeHealthSummary {
+  readonly status: "healthy" | "attention";
+  readonly message: string;
+  readonly recordCount: number;
+  readonly mediaCount: number;
+  readonly recentFailureCount: number;
+}
+
+export interface LocalStorageStatusSummary {
+  readonly baseDir: string;
+  readonly databasePath: string;
+  readonly mediaDir: string;
+  readonly configDir: string;
+  readonly backupDir: string;
+  readonly databaseExists: boolean;
+  readonly databaseBytes: number;
+  readonly mediaBytes: number;
+  readonly backupCount: number;
+}
+
+export interface LocalBackupSummary {
+  readonly name: string;
+  readonly path: string;
+  readonly createdAt: string;
+  readonly hasManifest: boolean;
+  readonly projectId?: string;
+  readonly schemaVersion?: string;
+}
+
+export interface LocalAdministrationSummary {
+  readonly projectSettings: LocalProjectSettingsSummary;
+  readonly globalSettings: LocalGlobalCmsSettingsSummary;
+  readonly health: LocalRuntimeHealthSummary;
+  readonly storage: LocalStorageStatusSummary;
+  readonly backups: readonly LocalBackupSummary[];
+  readonly restoreGuidance: string;
+  readonly editableProjectSettingKeys: readonly string[];
+}
+
 export interface ManualSourceAssetInput {
   readonly sourceUrl?: string;
   readonly evidence?: string;
@@ -232,6 +302,12 @@ export interface WorkflowRecoveryInput {
   readonly note?: string;
 }
 
+export interface ProjectAdministrationSettingsInput {
+  readonly operatorLabel?: string;
+  readonly defaultLocale?: string;
+  readonly policyNote?: string;
+}
+
 export interface LocalDashboardView {
   readonly runtimeKind: typeof LOCAL_RUNTIME_KIND;
   readonly project: CanonicalProject;
@@ -242,6 +318,7 @@ export interface LocalDashboardView {
   readonly routes: readonly LocalRouteSummary[];
   readonly executionFlow: LocalExecutionFlowSummary;
   readonly operationsControl: LocalOperationsControlSummary;
+  readonly administration: LocalAdministrationSummary;
   readonly lastOperation?: LocalOperationResult;
 }
 
@@ -287,6 +364,13 @@ interface PersistedOperationRow {
   readonly category: string | null;
   readonly payload: string;
   readonly createdAt: Date;
+}
+
+interface PersistedConfigRow {
+  readonly projectId: string;
+  readonly key: string;
+  readonly value: string;
+  readonly updatedAt: Date;
 }
 
 interface NormalizedPerformanceMetric {
@@ -360,7 +444,7 @@ export async function getLocalDashboardView(
 ): Promise<LocalDashboardView> {
   const runtime = getLocalRuntimeState(options);
   await ensureSeedData(runtime);
-  const [records, media, operations] = await Promise.all([
+  const [records, media, operations, configRows] = await Promise.all([
     runtime.prisma.localRecord.findMany({
       where: { projectId: runtime.project.id },
       orderBy: { createdAt: "asc" }
@@ -373,10 +457,15 @@ export async function getLocalDashboardView(
       where: { projectId: runtime.project.id },
       orderBy: { createdAt: "desc" },
       take: 25
+    }),
+    runtime.prisma.localConfig.findMany({
+      where: { projectId: runtime.project.id },
+      orderBy: { key: "asc" }
     })
   ]);
   const recordRows = records as PersistedRecordRow[];
   const operationRows = operations as PersistedOperationRow[];
+  const projectConfigRows = configRows as PersistedConfigRow[];
   const executionFlow = buildExecutionFlow(recordRows);
   const lastOperation = operationRows[0];
 
@@ -402,6 +491,13 @@ export async function getLocalDashboardView(
     routes: routeSummaries,
     executionFlow,
     operationsControl: buildOperationsControl(recordRows, operationRows, executionFlow),
+    administration: buildAdministrationSummary(
+      runtime,
+      recordRows,
+      media as PersistedMediaRow[],
+      operationRows,
+      projectConfigRows
+    ),
     ...(lastOperation
       ? {
           lastOperation: Object.freeze({
@@ -1253,6 +1349,59 @@ export async function addLocalMediaFixture(
   });
 }
 
+export async function updateProjectAdministrationSettings(
+  input: ProjectAdministrationSettingsInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+
+  try {
+    const settings = normalizeProjectSettingsInput(input);
+    await Promise.all(
+      Object.entries(settings).map(([key, value]) =>
+        runtime.prisma.localConfig.upsert({
+          where: {
+            projectId_key: {
+              projectId: runtime.project.id,
+              key
+            }
+          },
+          update: { value },
+          create: { projectId: runtime.project.id, key, value }
+        })
+      )
+    );
+
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Administration settings updated",
+      message: `Updated CMS project settings for ${runtime.project.name}.`
+    });
+  } catch (error) {
+    return recordOperation(
+      runtime,
+      safeFailure("Administration settings rejected", error)
+    );
+  }
+}
+
+export async function createLocalProjectBackup(
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+
+  try {
+    const backup = createProjectBackup(runtime);
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Local backup created",
+      message: `Created project backup ${backup.name}.`
+    });
+  } catch (error) {
+    return recordOperation(runtime, safeFailure("Local backup rejected", error));
+  }
+}
+
 export async function resetLocalRuntimeForTests(): Promise<void> {
   const holder = globalThis as typeof globalThis & {
     __ftvLocalRuntime?: LocalRuntimeState;
@@ -1566,6 +1715,52 @@ async function upsertWorkflowRun(
   });
 }
 
+function normalizeProjectSettingsInput(
+  input: ProjectAdministrationSettingsInput
+): Record<string, string> {
+  const operatorLabel = normalizeSetting(
+    input.operatorLabel,
+    "Project operator label",
+    80,
+    "CMS Operator"
+  );
+  const defaultLocale = normalizeSetting(
+    input.defaultLocale,
+    "Default locale",
+    20,
+    "en-US"
+  );
+  const policyNote = normalizeSetting(
+    input.policyNote,
+    "Policy note",
+    240,
+    "Manual-first CMS project operations."
+  );
+  if (!/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(defaultLocale)) {
+    throw new Error("Default locale must use a valid locale format.");
+  }
+
+  return {
+    [projectSettingKeys.operatorLabel]: operatorLabel,
+    [projectSettingKeys.defaultLocale]: defaultLocale,
+    [projectSettingKeys.policyNote]: policyNote
+  };
+}
+
+function normalizeSetting(
+  value: string | undefined,
+  label: string,
+  maxLength: number,
+  fallback: string
+): string {
+  const normalized = value?.trim() || fallback;
+  if (normalized.length > maxLength) {
+    throw new Error(`${label} must be ${maxLength} characters or fewer.`);
+  }
+
+  return normalized;
+}
+
 function buildOperationsControl(
   records: readonly PersistedRecordRow[],
   operations: readonly PersistedOperationRow[],
@@ -1596,6 +1791,76 @@ function buildOperationsControl(
     recentOperations: Object.freeze(recentOperations),
     pendingActions: buildPendingActions(executionFlow),
     failedOperations: Object.freeze(failedOperations)
+  });
+}
+
+function buildAdministrationSummary(
+  runtime: LocalRuntimeState,
+  records: readonly PersistedRecordRow[],
+  media: readonly PersistedMediaRow[],
+  operations: readonly PersistedOperationRow[],
+  configRows: readonly PersistedConfigRow[]
+): LocalAdministrationSummary {
+  const configByKey = new Map(configRows.map((row) => [row.key, row]));
+  const projectSettingRows = Object.values(projectSettingKeys)
+    .map((key) => configByKey.get(key))
+    .filter((row): row is PersistedConfigRow => row !== undefined);
+  const latestProjectSettingsUpdate = projectSettingRows
+    .map((row) => row.updatedAt.getTime())
+    .sort((a, b) => b - a)[0];
+  const databasePath = join(runtime.baseDir, "database", "ftv.sqlite");
+  const configDir = join(runtime.baseDir, "config");
+  const backupDir = join(runtime.baseDir, "backups");
+  const recentFailureCount = operations.filter((operation) => !operation.ok).length;
+  const databaseExists = existsSync(databasePath);
+
+  return Object.freeze({
+    projectSettings: Object.freeze({
+      operatorLabel:
+        configByKey.get(projectSettingKeys.operatorLabel)?.value ??
+        runtime.project.name,
+      defaultLocale:
+        configByKey.get(projectSettingKeys.defaultLocale)?.value ?? "en-US",
+      policyNote:
+        configByKey.get(projectSettingKeys.policyNote)?.value ??
+        "Manual-first CMS project operations.",
+      ...(latestProjectSettingsUpdate
+        ? { updatedAt: new Date(latestProjectSettingsUpdate).toISOString() }
+        : {})
+    }),
+    globalSettings: Object.freeze({
+      runtimeKind: LOCAL_RUNTIME_KIND,
+      schemaVersion,
+      migrationVersion,
+      environment: process.env.FTV_ENV ?? "development",
+      logLevel: process.env.FTV_LOG_LEVEL ?? "info",
+      serviceNamespace: runtime.project.serviceNamespace,
+      knownProjects: Object.freeze(listProjects().map((project) => project.id))
+    }),
+    health: Object.freeze({
+      status: databaseExists ? "healthy" : "attention",
+      message: databaseExists
+        ? "Local runtime database is available for the active project."
+        : "Local runtime database is missing. Run local setup before operating this project.",
+      recordCount: records.length,
+      mediaCount: media.length,
+      recentFailureCount
+    }),
+    storage: Object.freeze({
+      baseDir: runtime.baseDir,
+      databasePath,
+      mediaDir: runtime.mediaDir,
+      configDir,
+      backupDir,
+      databaseExists,
+      databaseBytes: fileSize(databasePath),
+      mediaBytes: directorySize(runtime.mediaDir),
+      backupCount: listProjectBackups(runtime).length
+    }),
+    backups: listProjectBackups(runtime),
+    restoreGuidance:
+      "Restore remains a guarded local operator action through npm run restore -- <backup-dir>; backup manifests must match the active project.",
+    editableProjectSettingKeys: Object.freeze([...Object.values(projectSettingKeys)])
   });
 }
 
@@ -2281,6 +2546,141 @@ function requiredActionForOperation(title: string, route: string): string {
   return route === "/workflow"
     ? "Review the failed operation and record recovery confirmation only after the operator has handled the issue outside workflow ownership."
     : "Open the owner workspace, complete the valid manual action if needed, then record recovery confirmation.";
+}
+
+function createProjectBackup(runtime: LocalRuntimeState): LocalBackupSummary {
+  const timestamp = new Date()
+    .toISOString()
+    .replaceAll(":", "")
+    .replaceAll(".", "");
+  const backupDir = join(
+    runtime.baseDir,
+    "backups",
+    `backup-${runtime.project.id}-${timestamp}`
+  );
+  const databasePath = join(runtime.baseDir, "database", "ftv.sqlite");
+  if (!existsSync(databasePath)) {
+    throw new Error("SQLite database is missing. Run local setup first.");
+  }
+
+  mkdirSync(join(backupDir, "database"), { recursive: true });
+  mkdirSync(join(backupDir, "media"), { recursive: true });
+  mkdirSync(join(backupDir, "config"), { recursive: true });
+  copyFileSync(databasePath, join(backupDir, "database", "ftv.sqlite"));
+  copyTree(join(runtime.baseDir, "media"), join(backupDir, "media"));
+  copyTree(join(runtime.baseDir, "config"), join(backupDir, "config"));
+
+  const manifest = {
+    timestamp,
+    projectId: runtime.project.id,
+    applicationVersion: readWorkspacePackageVersion(),
+    schemaVersion,
+    migrationVersion,
+    database: "database/ftv.sqlite",
+    media: "media",
+    config: "config"
+  };
+  writeFileSync(
+    join(backupDir, "manifest.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    { flag: "wx" }
+  );
+
+  return Object.freeze({
+    name: basename(backupDir),
+    path: backupDir,
+    createdAt: manifest.timestamp,
+    hasManifest: true,
+    projectId: runtime.project.id,
+    schemaVersion
+  });
+}
+
+function listProjectBackups(runtime: LocalRuntimeState): readonly LocalBackupSummary[] {
+  const backupRoot = join(runtime.baseDir, "backups");
+  if (!existsSync(backupRoot)) return Object.freeze([]);
+
+  const backups = readdirSync(backupRoot)
+    .map((entry) => join(backupRoot, entry))
+    .filter((path) => statSync(path).isDirectory())
+    .map((path) => toBackupSummary(path))
+    .filter((backup) => backupProjectId(backup) === runtime.project.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  return Object.freeze(backups);
+}
+
+function toBackupSummary(path: string): LocalBackupSummary {
+  const manifestPath = join(path, "manifest.json");
+  if (!existsSync(manifestPath)) {
+    return Object.freeze({
+      name: basename(path),
+      path,
+      createdAt: statSync(path).mtime.toISOString(),
+      hasManifest: false
+    });
+  }
+
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      readonly timestamp?: string;
+      readonly projectId?: string;
+      readonly schemaVersion?: string;
+    };
+    return Object.freeze({
+      name: basename(path),
+      path,
+      createdAt: manifest.timestamp ?? statSync(path).mtime.toISOString(),
+      hasManifest: true,
+      ...(manifest.projectId ? { projectId: manifest.projectId } : {}),
+      ...(manifest.schemaVersion
+        ? { schemaVersion: manifest.schemaVersion }
+        : {})
+    });
+  } catch {
+    return Object.freeze({
+      name: basename(path),
+      path,
+      createdAt: statSync(path).mtime.toISOString(),
+      hasManifest: false
+    });
+  }
+}
+
+function backupProjectId(backup: LocalBackupSummary): string | undefined {
+  return backup.projectId ?? (backup.hasManifest ? "football-troll-vault" : undefined);
+}
+
+function copyTree(source: string, destination: string): void {
+  if (!existsSync(source)) return;
+  mkdirSync(destination, { recursive: true });
+  for (const entry of readdirSync(source)) {
+    const from = join(source, entry);
+    const to = join(destination, basename(entry));
+    if (statSync(from).isDirectory()) copyTree(from, to);
+    else copyFileSync(from, to);
+  }
+}
+
+function directorySize(path: string): number {
+  if (!existsSync(path)) return 0;
+  return readdirSync(path).reduce((total, entry) => {
+    const target = join(path, entry);
+    const stat = statSync(target);
+    return total + (stat.isDirectory() ? directorySize(target) : stat.size);
+  }, 0);
+}
+
+function fileSize(path: string): number {
+  return existsSync(path) ? statSync(path).size : 0;
+}
+
+function readWorkspacePackageVersion(): string {
+  const workspaceRoot = findWorkspaceRoot(process.cwd());
+  const packageJson = JSON.parse(
+    readFileSync(join(workspaceRoot, "package.json"), "utf8")
+  ) as { readonly version?: string };
+  return packageJson.version ?? "unknown";
 }
 
 function safeFailure(

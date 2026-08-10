@@ -55,6 +55,88 @@ describe("L-03 local runtime persistence", () => {
       "/performance-analytics",
       "/administration"
     ]);
+    expect(view.administration.projectSettings.operatorLabel).toBe(
+      "Football Troll Vault"
+    );
+    expect(view.administration.globalSettings.knownProjects).toContain(
+      "synthetic-project"
+    );
+    expect(view.administration.health.status).toBe("healthy");
+    expect(view.administration.storage.databaseExists).toBe(true);
+  });
+
+  it("updates CMS-owned project administration settings without changing business records", async () => {
+    const before = await runtime.getLocalDashboardView();
+    const result = await runtime.updateProjectAdministrationSettings({
+      operatorLabel: "FTV Ops Desk",
+      defaultLocale: "en-US",
+      policyNote: "Use manual approval gates before publishing."
+    });
+    expect(result.ok).toBe(true);
+
+    const after = await runtime.getLocalDashboardView();
+    expect(after.records).toHaveLength(before.records.length);
+    expect(after.administration.projectSettings).toEqual(
+      expect.objectContaining({
+        operatorLabel: "FTV Ops Desk",
+        defaultLocale: "en-US",
+        policyNote: "Use manual approval gates before publishing."
+      })
+    );
+    expect(after.lastOperation?.title).toBe("Administration settings updated");
+  });
+
+  it("rejects invalid project administration settings", async () => {
+    const result = await runtime.updateProjectAdministrationSettings({
+      operatorLabel: "FTV Ops Desk",
+      defaultLocale: "invalid locale",
+      policyNote: "Manual-only"
+    });
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("valid locale format");
+  });
+
+  it("creates active-project local backups and isolates backup visibility", async () => {
+    const ftvBackup = await runtime.createLocalProjectBackup({
+      projectId: "football-troll-vault"
+    });
+    expect(ftvBackup.ok).toBe(true);
+    const syntheticBackup = await runtime.createLocalProjectBackup({
+      projectId: "synthetic-project"
+    });
+    expect(syntheticBackup.ok).toBe(true);
+
+    const ftvView = await runtime.getLocalDashboardView({
+      projectId: "football-troll-vault"
+    });
+    const syntheticView = await runtime.getLocalDashboardView({
+      projectId: "synthetic-project"
+    });
+
+    expect(ftvView.administration.backups).toHaveLength(1);
+    expect(ftvView.administration.backups[0]?.projectId).toBe(
+      "football-troll-vault"
+    );
+    expect(syntheticView.administration.backups).toHaveLength(1);
+    expect(syntheticView.administration.backups[0]?.projectId).toBe(
+      "synthetic-project"
+    );
+    expect(
+      existsSync(
+        join(ftvView.administration.backups[0]?.path ?? "", "manifest.json")
+      )
+    ).toBe(true);
+    expect(
+      JSON.parse(
+        readFileSync(
+          join(
+            syntheticView.administration.backups[0]?.path ?? "",
+            "manifest.json"
+          ),
+          "utf8"
+        )
+      ).projectId
+    ).toBe("synthetic-project");
   });
 
   it("persists a valid owner-routed asset intake across runtime restart", async () => {
