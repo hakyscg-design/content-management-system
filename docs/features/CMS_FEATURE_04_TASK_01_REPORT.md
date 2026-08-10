@@ -6,7 +6,7 @@ Repository: hakyscg-design/content-management-system
 
 Branch: feature/cms-workflow-operations-control
 
-PR: pending draft PR
+PR: https://github.com/hakyscg-design/content-management-system/pull/4
 
 Task 1 base inspected: `d29b3939c2dfc9cdd69ba6a084b8fcf2a5b4f06d`
 
@@ -69,5 +69,5 @@ Task 1 base inspected: `d29b3939c2dfc9cdd69ba6a084b8fcf2a5b4f06d`
 
 ## Closure
 
-- Draft PR: pending.
+- Draft PR: https://github.com/hakyscg-design/content-management-system/pull/4
 - Ending SHA: recorded in the operator handoff after final commit and push.
