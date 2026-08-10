@@ -132,9 +132,47 @@ export interface LocalOperationResult {
   readonly ok: boolean;
   readonly title: string;
   readonly message: string;
+  readonly operationId?: string;
   readonly code?: string;
   readonly category?: string;
   readonly workflowRunId?: string;
+}
+
+export interface LocalOperationSummary {
+  readonly id: string;
+  readonly ok: boolean;
+  readonly title: string;
+  readonly message: string;
+  readonly code?: string;
+  readonly category?: string;
+  readonly workflowRunId?: string;
+  readonly contextRoute: string;
+  readonly requiredAction: string;
+  readonly createdAt: string;
+  readonly canRecover: boolean;
+}
+
+export interface LocalWorkflowRunSummary extends LocalRecordSummary {
+  readonly currentState: string;
+  readonly targetRoute?: string;
+  readonly targetRecordId?: string;
+  readonly errorMessage?: string;
+  readonly nextAction: string;
+}
+
+export interface LocalPendingActionSummary {
+  readonly id: string;
+  readonly label: string;
+  readonly route: string;
+  readonly action: string;
+  readonly state: string;
+}
+
+export interface LocalOperationsControlSummary {
+  readonly workflowRuns: readonly LocalWorkflowRunSummary[];
+  readonly recentOperations: readonly LocalOperationSummary[];
+  readonly pendingActions: readonly LocalPendingActionSummary[];
+  readonly failedOperations: readonly LocalOperationSummary[];
 }
 
 export interface ManualSourceAssetInput {
@@ -189,6 +227,11 @@ export interface LearningSummaryInput {
   readonly summary: string;
 }
 
+export interface WorkflowRecoveryInput {
+  readonly operationId: string;
+  readonly note?: string;
+}
+
 export interface LocalDashboardView {
   readonly runtimeKind: typeof LOCAL_RUNTIME_KIND;
   readonly project: CanonicalProject;
@@ -198,6 +241,7 @@ export interface LocalDashboardView {
   readonly media: readonly LocalMediaSummary[];
   readonly routes: readonly LocalRouteSummary[];
   readonly executionFlow: LocalExecutionFlowSummary;
+  readonly operationsControl: LocalOperationsControlSummary;
   readonly lastOperation?: LocalOperationResult;
 }
 
@@ -231,6 +275,18 @@ interface PersistedMediaRow {
   readonly relativePath: string;
   readonly byteSize: number;
   readonly sha256: string;
+}
+
+interface PersistedOperationRow {
+  readonly projectId: string;
+  readonly id: string;
+  readonly ok: boolean;
+  readonly title: string;
+  readonly message: string;
+  readonly code: string | null;
+  readonly category: string | null;
+  readonly payload: string;
+  readonly createdAt: Date;
 }
 
 interface NormalizedPerformanceMetric {
@@ -304,7 +360,7 @@ export async function getLocalDashboardView(
 ): Promise<LocalDashboardView> {
   const runtime = getLocalRuntimeState(options);
   await ensureSeedData(runtime);
-  const [records, media, lastOperation] = await Promise.all([
+  const [records, media, operations] = await Promise.all([
     runtime.prisma.localRecord.findMany({
       where: { projectId: runtime.project.id },
       orderBy: { createdAt: "asc" }
@@ -313,11 +369,16 @@ export async function getLocalDashboardView(
       where: { projectId: runtime.project.id },
       orderBy: { createdAt: "asc" }
     }),
-    runtime.prisma.localOperation.findFirst({
+    runtime.prisma.localOperation.findMany({
       where: { projectId: runtime.project.id },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      take: 25
     })
   ]);
+  const recordRows = records as PersistedRecordRow[];
+  const operationRows = operations as PersistedOperationRow[];
+  const executionFlow = buildExecutionFlow(recordRows);
+  const lastOperation = operationRows[0];
 
   return Object.freeze({
     runtimeKind: LOCAL_RUNTIME_KIND,
@@ -325,11 +386,7 @@ export async function getLocalDashboardView(
     persistence: "persistent" as const,
     warning:
       "L-03 uses SQLite and local filesystem storage. Data and media persist across local restarts.",
-    records: Object.freeze(
-      (records as PersistedRecordRow[]).map((record) =>
-        toRecordSummary(record)
-      )
-    ),
+    records: Object.freeze(recordRows.map((record) => toRecordSummary(record))),
     media: Object.freeze(
       (media as PersistedMediaRow[]).map((item) =>
         Object.freeze({
@@ -343,10 +400,12 @@ export async function getLocalDashboardView(
       )
     ),
     routes: routeSummaries,
-    executionFlow: buildExecutionFlow(records as PersistedRecordRow[]),
+    executionFlow,
+    operationsControl: buildOperationsControl(recordRows, operationRows, executionFlow),
     ...(lastOperation
       ? {
           lastOperation: Object.freeze({
+            operationId: lastOperation.id,
             ok: lastOperation.ok,
             title: lastOperation.title,
             message: lastOperation.message,
@@ -405,10 +464,18 @@ export async function createManualSourceAsset(
       asset.id,
       operatorAction
     );
-    runtime.services.workflowOrchestration.completeRun(
+    const completedWorkflow = runtime.services.workflowOrchestration.completeRun(
       workflow.id,
       operatorAction
     );
+    await upsertWorkflowRun(runtime, {
+      id: completedWorkflow.id,
+      label: "Asset intake workflow",
+      status: completedWorkflow.status,
+      targetRoute: "/source-assets",
+      targetRecordId: assetId,
+      nextAction: "Workflow complete"
+    });
 
     await upsertRecord(runtime, {
       id: assetId,
@@ -1022,6 +1089,81 @@ export async function recordManualLearningSummary(
   }
 }
 
+export async function recordWorkflowRecovery(
+  input: WorkflowRecoveryInput,
+  options: LocalRuntimeOptions = {}
+): Promise<LocalOperationResult> {
+  const runtime = getLocalRuntimeState(options);
+  const sequence = await nextSequence(runtime);
+
+  try {
+    const operation = await runtime.prisma.localOperation.findUnique({
+      where: {
+        projectId_id: {
+          projectId: runtime.project.id,
+          id: input.operationId
+        }
+      }
+    });
+    if (!operation) {
+      throw new Error("Failed operation was not found for active project.");
+    }
+    if (operation.ok) {
+      throw new Error("Only failed operations can be marked for recovery.");
+    }
+    const existingRecovery = await findRecoveryWorkflowForOperation(
+      runtime,
+      operation.id
+    );
+    if (existingRecovery) {
+      throw new Error("Failed operation already has a recovery workflow.");
+    }
+
+    const workflowId = `l03-recovery-${sequence}:workflow`;
+    const targetRef = createEntityReference({
+      id: operation.id,
+      ownerServiceId: "FTV-SVC-11",
+      entityType: "LocalOperation"
+    });
+    runtime.services.workflowOrchestration.startRun(
+      workflowId,
+      [targetRef],
+      operatorAction
+    );
+    runtime.services.workflowOrchestration.recordStepCompleted(
+      workflowId,
+      "operator-reviewed",
+      operatorAction
+    );
+    const completedWorkflow = runtime.services.workflowOrchestration.completeRun(
+      workflowId,
+      operatorAction
+    );
+    await upsertWorkflowRun(runtime, {
+      id: completedWorkflow.id,
+      label: `Recovery for ${operation.title}`,
+      status: completedWorkflow.status,
+      targetRoute: routeForOperationTitle(operation.title),
+      targetRecordId: operation.id,
+      recoveredOperationId: operation.id,
+      note: input.note?.trim() || "Manual recovery reviewed by operator",
+      nextAction: "Manual recovery confirmation recorded"
+    });
+
+    return recordOperation(runtime, {
+      ok: true,
+      title: "Workflow recovery confirmation recorded",
+      message: `Recorded operator recovery confirmation for failed operation ${operation.id}; no owner-service business record was automatically changed.`,
+      workflowRunId: completedWorkflow.id
+    });
+  } catch (error) {
+    return recordOperation(
+      runtime,
+      safeFailure("Workflow recovery rejected", error)
+    );
+  }
+}
+
 export async function submitInvalidPublishingAttempt(
   options: LocalRuntimeOptions = {}
 ): Promise<LocalOperationResult> {
@@ -1393,6 +1535,148 @@ async function upsertRecord(
   });
 }
 
+async function upsertWorkflowRun(
+  runtime: LocalRuntimeState,
+  input: {
+    readonly id: string;
+    readonly label: string;
+    readonly status: string;
+    readonly targetRoute?: string;
+    readonly targetRecordId?: string;
+    readonly recoveredOperationId?: string;
+    readonly note?: string;
+    readonly errorMessage?: string;
+    readonly nextAction: string;
+  }
+): Promise<void> {
+  await upsertRecord(runtime, {
+    id: input.id,
+    ownerServiceId: "FTV-SVC-08",
+    entityType: "WorkflowRun",
+    label: input.label,
+    status: input.status,
+    payload: toPayload({
+      targetRoute: input.targetRoute ?? null,
+      targetRecordId: input.targetRecordId ?? null,
+      recoveredOperationId: input.recoveredOperationId ?? null,
+      note: input.note ?? null,
+      errorMessage: input.errorMessage ?? null,
+      nextAction: input.nextAction
+    })
+  });
+}
+
+function buildOperationsControl(
+  records: readonly PersistedRecordRow[],
+  operations: readonly PersistedOperationRow[],
+  executionFlow: LocalExecutionFlowSummary
+): LocalOperationsControlSummary {
+  const workflowRuns = records
+    .filter((record) => record.entityType === "WorkflowRun")
+    .map((record) => {
+      const payload = parsePayload(record.payload);
+      return Object.freeze({
+        ...toRecordSummary(record),
+        currentState: record.status,
+        targetRoute: readPayloadString(payload, "targetRoute", ""),
+        targetRecordId: readPayloadString(payload, "targetRecordId", ""),
+        errorMessage: readPayloadString(payload, "errorMessage", ""),
+        nextAction: readPayloadString(payload, "nextAction", "Review workflow")
+      });
+    });
+  const recentOperations = operations.map((operation) =>
+    toOperationSummary(operation, workflowRuns)
+  );
+  const failedOperations = recentOperations.filter(
+    (operation) => !operation.ok
+  );
+
+  return Object.freeze({
+    workflowRuns: Object.freeze(workflowRuns),
+    recentOperations: Object.freeze(recentOperations),
+    pendingActions: buildPendingActions(executionFlow),
+    failedOperations: Object.freeze(failedOperations)
+  });
+}
+
+function buildPendingActions(
+  executionFlow: LocalExecutionFlowSummary
+): readonly LocalPendingActionSummary[] {
+  return Object.freeze([
+    ...executionFlow.assets
+      .filter((record) => record.canCreateContent)
+      .map((record) =>
+        toPendingAction(record.id, record.label, "/content-production", record.nextAction, record.status)
+      ),
+    ...executionFlow.contentPackages
+      .filter((record) => record.canApprove || record.canPreparePublishing)
+      .map((record) =>
+        toPendingAction(
+          record.id,
+          record.label,
+          record.canApprove ? "/review" : "/publishing",
+          record.nextAction,
+          record.status
+        )
+      ),
+    ...executionFlow.publishingPackages
+      .filter((record) => record.canComplete || record.canRecordPerformance)
+      .map((record) =>
+        toPendingAction(
+          record.id,
+          record.label,
+          record.canComplete ? "/publishing" : "/performance-analytics",
+          record.nextAction,
+          record.status
+        )
+      ),
+    ...executionFlow.performanceFeedback.imports
+      .filter((record) => !record.hasAnalyticsReport)
+      .map((record) =>
+        toPendingAction(record.id, record.label, "/performance-analytics", record.nextAction, record.status)
+      ),
+    ...executionFlow.performanceFeedback.reports
+      .filter((record) => !record.hasLearningSummary)
+      .map((record) =>
+        toPendingAction(record.id, record.label, "/performance-analytics", record.nextAction, record.status)
+      )
+  ]);
+}
+
+function toPendingAction(
+  id: string,
+  label: string,
+  route: string,
+  action: string,
+  state: string
+): LocalPendingActionSummary {
+  return Object.freeze({ id, label, route, action, state });
+}
+
+function toOperationSummary(
+  operation: PersistedOperationRow,
+  workflowRuns: readonly LocalWorkflowRunSummary[]
+): LocalOperationSummary {
+  const payload = parsePayload(operation.payload);
+  const workflowRunId = readPayloadString(payload, "workflowRunId", "");
+  const contextRoute = routeForOperationTitle(operation.title);
+  return Object.freeze({
+    id: operation.id,
+    ok: operation.ok,
+    title: operation.title,
+    message: operation.message,
+    ...(operation.code ? { code: operation.code } : {}),
+    ...(operation.category ? { category: operation.category } : {}),
+    ...(workflowRunId ? { workflowRunId } : {}),
+    contextRoute,
+    requiredAction: requiredActionForOperation(operation.title, contextRoute),
+    createdAt: operation.createdAt.toISOString(),
+    canRecover:
+      !operation.ok &&
+      !workflowRuns.some((run) => run.targetRecordId === operation.id)
+  });
+}
+
 function buildExecutionFlow(
   records: readonly PersistedRecordRow[]
 ): LocalExecutionFlowSummary {
@@ -1749,6 +2033,24 @@ async function findLearningSummaryForReport(
   });
 }
 
+async function findRecoveryWorkflowForOperation(
+  runtime: LocalRuntimeState,
+  operationId: string
+): Promise<PersistedRecordRow | undefined> {
+  const workflowRuns = (await runtime.prisma.localRecord.findMany({
+    where: {
+      projectId: runtime.project.id,
+      entityType: "WorkflowRun"
+    },
+    orderBy: { createdAt: "desc" }
+  })) as PersistedRecordRow[];
+
+  return workflowRuns.find((candidate) => {
+    const payload = parsePayload(candidate.payload);
+    return readPayloadString(payload, "recoveredOperationId", "") === operationId;
+  });
+}
+
 async function nextSequence(runtime: LocalRuntimeState): Promise<number> {
   const key = "operation.sequence";
   const current = await runtime.prisma.localConfig.findUnique({
@@ -1792,7 +2094,7 @@ async function recordOperation(
       })
     }
   });
-  return Object.freeze(result);
+  return Object.freeze({ ...result, operationId: id });
 }
 
 function toPayload(value: unknown): string {
@@ -1935,6 +2237,50 @@ function ensureAnalyticsReportInService(
     readPayloadString(payload, "narrative"),
     operatorAction
   );
+}
+
+function routeForOperationTitle(title: string): string {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("asset")) return "/source-assets";
+  if (normalized.includes("content")) return "/content-production";
+  if (normalized.includes("review")) return "/review";
+  if (normalized.includes("publishing")) return "/publishing";
+  if (
+    normalized.includes("performance") ||
+    normalized.includes("analytics") ||
+    normalized.includes("learning")
+  ) {
+    return "/performance-analytics";
+  }
+
+  return "/workflow";
+}
+
+function requiredActionForOperation(title: string, route: string): string {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("asset")) {
+    return "Review source/asset details in the owner workspace, correct the manual input if needed, then record recovery confirmation.";
+  }
+  if (normalized.includes("content")) {
+    return "Review the content production record in the owner workspace, complete the valid owner-service action if needed, then record recovery confirmation.";
+  }
+  if (normalized.includes("review")) {
+    return "Review the human approval state in the owner workspace, complete the valid manual approval action if needed, then record recovery confirmation.";
+  }
+  if (normalized.includes("publishing")) {
+    return "Review publishing preparation in the owner workspace, complete only the valid manual publishing action if needed, then record recovery confirmation.";
+  }
+  if (
+    normalized.includes("performance") ||
+    normalized.includes("analytics") ||
+    normalized.includes("learning")
+  ) {
+    return "Review the performance workspace, complete the valid manual feedback/report/learning action if needed, then record recovery confirmation.";
+  }
+
+  return route === "/workflow"
+    ? "Review the failed operation and record recovery confirmation only after the operator has handled the issue outside workflow ownership."
+    : "Open the owner workspace, complete the valid manual action if needed, then record recovery confirmation.";
 }
 
 function safeFailure(

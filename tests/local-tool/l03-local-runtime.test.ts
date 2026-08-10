@@ -71,6 +71,114 @@ describe("L-03 local runtime persistence", () => {
           record.ownerServiceId === "FTV-SVC-01"
       )
     ).toBe(true);
+    expect(view.operationsControl.workflowRuns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Asset intake workflow",
+          currentState: "completed",
+          targetRoute: "/source-assets"
+        })
+      ])
+    );
+  });
+
+  it("records safe workflow recovery for failed operations", async () => {
+    const flow = await createReadyContentPackage("Workflow recovery");
+    const duplicate = await runtime.createContentProductionPackage({
+      assetId: flow.assetId,
+      title: "Duplicate workflow content",
+      concept: "Duplicate workflow concept"
+    });
+    expect(duplicate.ok).toBe(false);
+    expect(duplicate.operationId).toBeDefined();
+
+    let view = await runtime.getLocalDashboardView();
+    const failedOperation = view.operationsControl.failedOperations.find(
+      (operation) => operation.id === duplicate.operationId
+    );
+    expect(failedOperation?.canRecover).toBe(true);
+    expect(failedOperation?.contextRoute).toBe("/content-production");
+    expect(failedOperation?.requiredAction).toContain("owner-service action");
+    expect(
+      view.operationsControl.pendingActions.some(
+        (action) => action.route === "/review"
+      )
+    ).toBe(true);
+
+    const recovery = await runtime.recordWorkflowRecovery({
+      operationId: duplicate.operationId ?? "",
+      note: "Operator reviewed duplicate content failure"
+    });
+    expect(recovery.ok).toBe(true);
+    expect(recovery.workflowRunId).toContain("l03-recovery-");
+    expect(recovery.title).toBe("Workflow recovery confirmation recorded");
+    expect(recovery.message).toContain(
+      "no owner-service business record was automatically changed"
+    );
+
+    view = await runtime.getLocalDashboardView();
+    expect(
+      view.operationsControl.workflowRuns.some(
+        (run) =>
+          run.targetRecordId === duplicate.operationId &&
+          run.currentState === "completed" &&
+          run.targetRoute === "/content-production" &&
+          run.nextAction === "Manual recovery confirmation recorded"
+      )
+    ).toBe(true);
+    expect(
+      view.operationsControl.failedOperations.find(
+        (operation) => operation.id === duplicate.operationId
+      )?.canRecover
+    ).toBe(false);
+
+    const duplicateRecovery = await runtime.recordWorkflowRecovery({
+      operationId: duplicate.operationId ?? ""
+    });
+    expect(duplicateRecovery.ok).toBe(false);
+    expect(duplicateRecovery.message).toContain(
+      "already has a recovery workflow"
+    );
+  });
+
+  it("isolates workflow operation history and recovery between projects", async () => {
+    const ftvFailure = await runtime.recordPerformanceFeedback(
+      {
+        publishingPackageId: "missing-package",
+        views: 1
+      },
+      { projectId: "football-troll-vault" }
+    );
+    const syntheticFailure = await runtime.recordPerformanceFeedback(
+      {
+        publishingPackageId: "missing-package",
+        views: 2
+      },
+      { projectId: "synthetic-project" }
+    );
+    expect(ftvFailure.ok).toBe(false);
+    expect(syntheticFailure.ok).toBe(false);
+    expect(ftvFailure.operationId).not.toBe(syntheticFailure.operationId);
+
+    const ftvRecovery = await runtime.recordWorkflowRecovery(
+      { operationId: ftvFailure.operationId ?? "" },
+      { projectId: "football-troll-vault" }
+    );
+    expect(ftvRecovery.ok).toBe(true);
+
+    const syntheticView = await runtime.getLocalDashboardView({
+      projectId: "synthetic-project"
+    });
+    expect(
+      syntheticView.operationsControl.workflowRuns.some(
+        (run) => run.targetRecordId === ftvFailure.operationId
+      )
+    ).toBe(false);
+    expect(
+      syntheticView.operationsControl.failedOperations.find(
+        (operation) => operation.id === syntheticFailure.operationId
+      )?.canRecover
+    ).toBe(true);
   });
 
   it("persists the manual source to publishing preparation workspace flow", async () => {
