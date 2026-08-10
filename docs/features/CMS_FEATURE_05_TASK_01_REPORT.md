@@ -6,7 +6,7 @@ Repository: hakyscg-design/content-management-system
 
 Branch: feature/cms-administration-project-configuration
 
-PR: pending draft PR
+PR: https://github.com/hakyscg-design/content-management-system/pull/5
 
 Task 1 base inspected: `92ee1623228c33971568c227db129846b1346956`
 
@@ -79,5 +79,5 @@ Task 1 base inspected: `92ee1623228c33971568c227db129846b1346956`
 
 ## Closure
 
-- Draft PR: pending.
+- Draft PR: https://github.com/hakyscg-design/content-management-system/pull/5
 - Ending SHA: recorded in the operator handoff after final commit and push.
