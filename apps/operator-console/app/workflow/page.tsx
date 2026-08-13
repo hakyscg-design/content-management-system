@@ -1,4 +1,11 @@
 import Link from "next/link";
+import {
+  copy,
+  localizeValue,
+  type OperatorCopy,
+  type OperatorLanguage
+} from "../i18n.js";
+import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 
@@ -6,26 +13,28 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
+  const language = await getOperatorLanguage();
+  const text = copy[language];
   const control = view.operationsControl;
 
   return (
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Workflow</h2>
-          <p className="page-copy">
-            Monitor project-scoped execution, review failed operations, and
-            record manual recovery confirmation without changing owner-service
-            business records automatically.
-          </p>
+          <h2 className="page-title">{text.pages.workflow.title}</h2>
+          <p className="page-copy">{text.pages.workflow.copy}</p>
         </div>
       </header>
-      <OperationNotice operation={view.lastOperation} />
+      <OperationNotice
+        language={language}
+        operation={view.lastOperation}
+        text={text.common}
+      />
 
       <div className="grid">
         <section className="panel" aria-labelledby="pending-title">
           <h2 className="panel-title" id="pending-title">
-            Pending next actions
+            {text.pages.workflow.pending}
           </h2>
           {control.pendingActions.length > 0 ? (
             <div className="record-list">
@@ -33,47 +42,56 @@ export default async function Page() {
                 <article className="record" key={`${item.route}:${item.id}`}>
                   <strong>{item.label}</strong>
                   <div className="meta">{item.id}</div>
-                  <div className="meta">State: {item.state}</div>
-                  <div className="meta">Next: {item.action}</div>
+                  <div className="meta">
+                    {text.common.state}: {item.state}
+                  </div>
+                  <div className="meta">
+                    {text.common.next}: {localizeValue(item.action, language)}
+                  </div>
                   <div className="actions">
                     <Link
                       className="button secondary compact"
                       href={item.route}
                     >
-                      Open Workspace
+                      {text.common.openWorkspace}
                     </Link>
                   </div>
                 </article>
               ))}
             </div>
           ) : (
-            <div className="empty">No pending workflow actions.</div>
+            <div className="empty">{text.pages.workflow.noPending}</div>
           )}
         </section>
 
         <section className="panel" aria-labelledby="failures-title">
           <h2 className="panel-title" id="failures-title">
-            Failed operations
+            {text.pages.workflow.failedOperations}
           </h2>
           {control.failedOperations.length > 0 ? (
             <div className="record-list">
               {control.failedOperations.map((operation) => (
                 <article className="record" key={operation.id}>
-                  <strong>{operation.title}</strong>
+                  <strong>{localizeValue(operation.title, language)}</strong>
                   <div className="meta">{operation.id}</div>
-                  <div className="meta">{operation.message}</div>
+                  <div className="meta">
+                    {localizeValue(operation.message, language)}
+                  </div>
                   {operation.code ? (
-                    <div className="meta">Code: {operation.code}</div>
+                    <div className="meta">
+                      {text.common.code}: {operation.code}
+                    </div>
                   ) : null}
                   <div className="meta">
-                    Required action: {operation.requiredAction}
+                    {text.pages.workflow.requiredAction}:{" "}
+                    {localizeValue(operation.requiredAction, language)}
                   </div>
                   <div className="actions">
                     <Link
                       className="button secondary compact"
                       href={operation.contextRoute}
                     >
-                      Open Owner Workspace
+                      {text.common.openOwnerWorkspace}
                     </Link>
                   </div>
                   {operation.canRecover ? (
@@ -90,51 +108,53 @@ export default async function Page() {
                       <input
                         className="field"
                         name="note"
-                        placeholder="What did the operator review or correct?"
+                        placeholder={text.pages.workflow.recoveryPlaceholder}
                         required
                       />
                       <button
                         className="button secondary compact"
                         type="submit"
                       >
-                        Record Recovery Confirmation
+                        {text.pages.workflow.recordRecovery}
                       </button>
                       <div className="meta">
-                        This records that the operator handled the failure. It
-                        does not retry or alter the owner-service business
-                        record.
+                        {text.pages.workflow.recoveryGuidance}
                       </div>
                     </form>
                   ) : (
                     <div className="meta">
-                      Recovery confirmation already recorded.
+                      {text.pages.workflow.recoveryRecorded}
                     </div>
                   )}
                 </article>
               ))}
             </div>
           ) : (
-            <div className="empty">No failed operations.</div>
+            <div className="empty">{text.pages.workflow.noFailures}</div>
           )}
         </section>
 
         <section className="panel" aria-labelledby="runs-title">
           <h2 className="panel-title" id="runs-title">
-            Workflow runs
+            {text.pages.workflow.workflowRuns}
           </h2>
           <RecordList
+            language={language}
             records={control.workflowRuns}
-            empty="No workflow runs are recorded yet."
+            empty={text.pages.workflow.noWorkflowRuns}
+            text={text}
           />
         </section>
 
         <section className="panel" aria-labelledby="operations-title">
           <h2 className="panel-title" id="operations-title">
-            Recent operations
+            {text.pages.workflow.recentOperations}
           </h2>
           <RecordList
+            language={language}
             records={control.recentOperations}
-            empty="No recent operations."
+            empty={text.pages.workflow.noRecentOperations}
+            text={text}
           />
         </section>
       </div>
@@ -144,7 +164,9 @@ export default async function Page() {
 
 function RecordList({
   records,
-  empty
+  empty,
+  language,
+  text
 }: {
   readonly records: readonly {
     readonly id: string;
@@ -159,6 +181,8 @@ function RecordList({
     readonly contextRoute?: string;
   }[];
   readonly empty: string;
+  readonly language: OperatorLanguage;
+  readonly text: OperatorCopy;
 }) {
   if (records.length === 0) return <div className="empty">{empty}</div>;
 
@@ -166,21 +190,30 @@ function RecordList({
     <div className="record-list">
       {records.map((record) => (
         <article className="record" key={record.id}>
-          <strong>{record.title ?? record.label ?? record.id}</strong>
+          <strong>
+            {localizeValue(record.title ?? record.label ?? record.id, language)}
+          </strong>
           <div className="meta">{record.id}</div>
-          {record.message ? <div className="meta">{record.message}</div> : null}
+          {record.message ? (
+            <div className="meta">
+              {localizeValue(record.message, language)}
+            </div>
+          ) : null}
           {(record.currentState ?? record.status) ? (
             <div className="meta">
-              State: {record.currentState ?? record.status}
+              {text.common.state}: {record.currentState ?? record.status}
             </div>
           ) : null}
           {record.ok !== undefined ? (
             <div className="meta">
-              Result: {record.ok ? "passed" : "failed"}
+              {text.common.result}:{" "}
+              {record.ok ? text.common.passed : text.common.failed}
             </div>
           ) : null}
           {record.nextAction ? (
-            <div className="meta">Next: {record.nextAction}</div>
+            <div className="meta">
+              {text.common.next}: {localizeValue(record.nextAction, language)}
+            </div>
           ) : null}
           {record.targetRoute ? (
             <div className="actions">
@@ -188,7 +221,7 @@ function RecordList({
                 className="button secondary compact"
                 href={record.targetRoute}
               >
-                Open Context
+                {text.common.openContext}
               </Link>
             </div>
           ) : null}

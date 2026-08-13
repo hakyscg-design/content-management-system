@@ -1,3 +1,5 @@
+import { copy, localizeValue } from "../i18n.js";
+import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 
@@ -5,46 +7,50 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
+  const language = await getOperatorLanguage();
+  const text = copy[language];
   const administration = view.administration;
 
   return (
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Administration</h2>
-          <p className="page-copy">
-            Manage CMS-owned project settings and local runtime operations
-            without taking ownership of content, publishing, review,
-            performance, or workflow business records.
-          </p>
+          <h2 className="page-title">{text.pages.administration.title}</h2>
+          <p className="page-copy">{text.pages.administration.copy}</p>
         </div>
       </header>
 
-      <OperationNotice operation={view.lastOperation} />
+      <OperationNotice
+        language={language}
+        operation={view.lastOperation}
+        text={text.common}
+      />
 
       <div className="grid">
         <section className="panel" aria-labelledby="project-title">
           <h2 className="panel-title" id="project-title">
-            Canonical Project Configuration
+            {text.pages.administration.canonical}
           </h2>
           <div className="record-list">
             <article className="record">
               <strong>{administration.canonicalProjectProfile.name}</strong>
               <div className="meta">
-                ID: {administration.canonicalProjectProfile.id}
+                {text.common.id}: {administration.canonicalProjectProfile.id}
               </div>
               <div className="meta">
-                Slug: {administration.canonicalProjectProfile.slug}
+                {text.pages.administration.slug}:{" "}
+                {administration.canonicalProjectProfile.slug}
               </div>
               <div className="meta">
-                Namespace:{" "}
+                {text.pages.administration.namespace}:{" "}
                 {administration.canonicalProjectProfile.serviceNamespace}
               </div>
               <div className="meta">
-                Profile: {administration.canonicalProjectProfile.profilePath}
+                {text.pages.administration.profile}:{" "}
+                {administration.canonicalProjectProfile.profilePath}
               </div>
               <div className="meta">
-                This registry-backed identity is read-only in Administration.
+                {text.pages.administration.readOnlyIdentity}
               </div>
             </article>
           </div>
@@ -52,10 +58,13 @@ export default async function Page() {
 
         <section className="panel" aria-labelledby="settings-title">
           <h2 className="panel-title" id="settings-title">
-            Local Operator Preferences
+            {text.pages.administration.preferences}
           </h2>
           <div className="meta">
-            {administration.projectSettings.description}
+            {localizeValue(
+              administration.projectSettings.description,
+              language
+            )}
           </div>
           <form
             className="form-stack"
@@ -64,7 +73,7 @@ export default async function Page() {
           >
             <input name="action" type="hidden" value="update-settings" />
             <label>
-              Operator label
+              {text.pages.administration.operatorLabel}
               <input
                 className="field"
                 maxLength={80}
@@ -73,7 +82,7 @@ export default async function Page() {
               />
             </label>
             <label>
-              Default locale
+              {text.pages.administration.defaultLocale}
               <input
                 className="field"
                 maxLength={20}
@@ -83,7 +92,7 @@ export default async function Page() {
               />
             </label>
             <label>
-              Policy note
+              {text.pages.administration.policyNote}
               <textarea
                 className="field"
                 maxLength={240}
@@ -93,42 +102,47 @@ export default async function Page() {
             </label>
             {administration.projectSettings.updatedAt ? (
               <div className="meta">
-                Last updated: {administration.projectSettings.updatedAt}
+                {text.pages.administration.lastUpdated}:{" "}
+                {administration.projectSettings.updatedAt}
               </div>
             ) : null}
             <button className="button" type="submit">
-              Save Project Settings
+              {text.pages.administration.saveProjectSettings}
             </button>
           </form>
         </section>
 
         <section className="panel" aria-labelledby="global-title">
           <h2 className="panel-title" id="global-title">
-            Global CMS Settings
+            {text.pages.administration.globalSettings}
           </h2>
           <div className="meta">
-            {administration.globalSettings.description}
+            {localizeValue(administration.globalSettings.description, language)}
           </div>
           <div className="record-list">
             <article className="record">
               <strong>{administration.globalSettings.runtimeKind}</strong>
               <div className="meta">
-                Scope: {administration.globalSettings.scope}
+                {text.common.scope}: {administration.globalSettings.scope}
               </div>
               <div className="meta">
-                Schema: {administration.globalSettings.schemaVersion}
+                {text.pages.administration.schema}:{" "}
+                {administration.globalSettings.schemaVersion}
               </div>
               <div className="meta">
-                Migration: {administration.globalSettings.migrationVersion}
+                {text.pages.administration.migration}:{" "}
+                {administration.globalSettings.migrationVersion}
               </div>
               <div className="meta">
-                Environment: {administration.globalSettings.environment}
+                {text.pages.administration.environment}:{" "}
+                {administration.globalSettings.environment}
               </div>
               <div className="meta">
-                Log level: {administration.globalSettings.logLevel}
+                {text.pages.administration.logLevel}:{" "}
+                {administration.globalSettings.logLevel}
               </div>
               <div className="meta">
-                Known projects:{" "}
+                {text.pages.administration.knownProjects}:{" "}
                 {administration.globalSettings.knownProjects.join(", ")}
               </div>
             </article>
@@ -137,58 +151,75 @@ export default async function Page() {
 
         <section className="panel" aria-labelledby="health-title">
           <h2 className="panel-title" id="health-title">
-            Runtime Health
+            {text.pages.administration.runtimeHealth}
           </h2>
           <article className="record">
-            <strong>{administration.health.status}</strong>
-            <div className="meta">{administration.health.message}</div>
+            <strong>
+              {localizeValue(administration.health.status, language)}
+            </strong>
             <div className="meta">
-              Records: {administration.health.recordCount}
+              {localizeValue(administration.health.message, language)}
             </div>
             <div className="meta">
-              Media: {administration.health.mediaCount}
+              {text.pages.administration.records}:{" "}
+              {administration.health.recordCount}
             </div>
             <div className="meta">
-              Recent failures: {administration.health.recentFailureCount}
+              {text.pages.administration.media}:{" "}
+              {administration.health.mediaCount}
+            </div>
+            <div className="meta">
+              {text.pages.administration.recentFailures}:{" "}
+              {administration.health.recentFailureCount}
             </div>
           </article>
         </section>
 
         <section className="panel" aria-labelledby="storage-title">
           <h2 className="panel-title" id="storage-title">
-            Project-Scoped Local Storage
+            {text.pages.administration.storage}
           </h2>
           <article className="record">
             <strong>
-              Database{" "}
-              {administration.storage.databaseExists ? "ready" : "missing"}
+              {text.pages.administration.database}{" "}
+              {administration.storage.databaseExists
+                ? text.pages.administration.ready
+                : text.common.missing}
             </strong>
-            <div className="meta">Scope: {administration.storage.scope}</div>
-            <div className="meta">Base: {administration.storage.baseDir}</div>
             <div className="meta">
-              Database: {administration.storage.databasePath}
+              {text.common.scope}: {administration.storage.scope}
             </div>
             <div className="meta">
-              Database bytes: {administration.storage.databaseBytes}
-            </div>
-            <div className="meta">Media: {administration.storage.mediaDir}</div>
-            <div className="meta">
-              Media bytes: {administration.storage.mediaBytes}
+              {text.pages.administration.base}: {administration.storage.baseDir}
             </div>
             <div className="meta">
-              Backups: {administration.storage.backupCount}
+              {text.pages.administration.database}:{" "}
+              {administration.storage.databasePath}
+            </div>
+            <div className="meta">
+              {text.pages.administration.databaseBytes}:{" "}
+              {administration.storage.databaseBytes}
+            </div>
+            <div className="meta">
+              {text.pages.administration.media}:{" "}
+              {administration.storage.mediaDir}
+            </div>
+            <div className="meta">
+              {text.pages.administration.mediaBytes}:{" "}
+              {administration.storage.mediaBytes}
+            </div>
+            <div className="meta">
+              {text.pages.administration.backups}:{" "}
+              {administration.storage.backupCount}
             </div>
           </article>
         </section>
 
         <section className="panel" aria-labelledby="backup-title">
           <h2 className="panel-title" id="backup-title">
-            Project Backup And Restore
+            {text.pages.administration.backupRestore}
           </h2>
-          <div className="meta">
-            Backup visibility is filtered to the active project. Global backup
-            policy is read-only here.
-          </div>
+          <div className="meta">{text.pages.administration.backupGuidance}</div>
           <form
             className="inline-form"
             action="/api/local/administration"
@@ -196,28 +227,37 @@ export default async function Page() {
           >
             <input name="action" type="hidden" value="create-backup" />
             <button className="button" type="submit">
-              Create Local Backup
+              {text.pages.administration.createBackup}
             </button>
           </form>
-          <div className="meta">{administration.restoreGuidance}</div>
+          <div className="meta">
+            {localizeValue(administration.restoreGuidance, language)}
+          </div>
           {administration.backups.length > 0 ? (
             <div className="record-list">
               {administration.backups.map((backup) => (
                 <article className="record" key={backup.path}>
                   <strong>{backup.name}</strong>
                   <div className="meta">{backup.path}</div>
-                  <div className="meta">Created: {backup.createdAt}</div>
                   <div className="meta">
-                    Manifest: {backup.hasManifest ? "present" : "missing"}
+                    {text.common.created}: {backup.createdAt}
+                  </div>
+                  <div className="meta">
+                    {text.common.manifest}:{" "}
+                    {backup.hasManifest
+                      ? text.common.present
+                      : text.common.missing}
                   </div>
                   {backup.projectId ? (
-                    <div className="meta">Project: {backup.projectId}</div>
+                    <div className="meta">
+                      {text.common.project}: {backup.projectId}
+                    </div>
                   ) : null}
                 </article>
               ))}
             </div>
           ) : (
-            <div className="empty">No local backups are recorded yet.</div>
+            <div className="empty">{text.pages.administration.noBackups}</div>
           )}
         </section>
       </div>

@@ -1,3 +1,5 @@
+import { copy, localizeValue } from "../i18n.js";
+import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 
@@ -5,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
+  const language = await getOperatorLanguage();
+  const text = copy[language];
   const packages = view.executionFlow.contentPackages.filter(
     (record) => record.canPreparePublishing
   );
@@ -14,22 +18,23 @@ export default async function Page() {
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Publishing</h2>
-          <p className="page-copy">
-            Prepare approved content for manual publishing. No autonomous
-            platform publishing is performed.
-          </p>
+          <h2 className="page-title">{text.pages.publishing.title}</h2>
+          <p className="page-copy">{text.pages.publishing.copy}</p>
         </div>
       </header>
-      <OperationNotice operation={view.lastOperation} />
+      <OperationNotice
+        language={language}
+        operation={view.lastOperation}
+        text={text.common}
+      />
       <div className="grid">
         <section className="panel" aria-labelledby="publishing-create-title">
           <h2 className="panel-title" id="publishing-create-title">
-            Prepare package
+            {text.pages.publishing.preparePackage}
           </h2>
           {packages.length === 0 ? (
             <div className="empty">
-              No approved content is waiting for publishing preparation.
+              {text.pages.publishing.noApprovedContent}
             </div>
           ) : null}
           <form
@@ -38,7 +43,7 @@ export default async function Page() {
             method="post"
           >
             <label>
-              Approved content
+              {text.pages.publishing.approvedContent}
               <select className="field" name="contentPackageId" required>
                 {packages.map((record) => (
                   <option key={record.id} value={record.id}>
@@ -48,7 +53,7 @@ export default async function Page() {
               </select>
             </label>
             <label>
-              Destination
+              {text.pages.publishing.destination}
               <input
                 className="field"
                 name="destination"
@@ -56,11 +61,11 @@ export default async function Page() {
               />
             </label>
             <label>
-              Caption
+              {text.pages.publishing.caption}
               <textarea
                 className="field"
                 name="caption"
-                placeholder="Final manual caption"
+                placeholder={text.pages.publishing.captionPlaceholder}
               />
             </label>
             <button
@@ -68,13 +73,13 @@ export default async function Page() {
               type="submit"
               disabled={packages.length === 0}
             >
-              Prepare Manual Package
+              {text.pages.publishing.prepareManualPackage}
             </button>
           </form>
         </section>
         <section className="panel" aria-labelledby="publishing-list-title">
           <h2 className="panel-title" id="publishing-list-title">
-            Manual packages
+            {text.pages.publishing.manualPackages}
           </h2>
           {publishing.length > 0 ? (
             <div className="record-list">
@@ -82,8 +87,13 @@ export default async function Page() {
                 <article className="record" key={record.id}>
                   <strong>{record.label}</strong>
                   <div className="meta">{record.id}</div>
-                  <div className="meta">State: {record.status}</div>
-                  <div className="meta">Next: {record.nextAction}</div>
+                  <div className="meta">
+                    {text.common.state}: {record.status}
+                  </div>
+                  <div className="meta">
+                    {text.common.next}:{" "}
+                    {localizeValue(record.nextAction, language)}
+                  </div>
                   {record.canComplete ? (
                     <form
                       className="inline-form"
@@ -98,13 +108,15 @@ export default async function Page() {
                       <input
                         className="field"
                         name="manualPublishingReference"
-                        placeholder="manual://published/reference"
+                        placeholder={
+                          text.pages.publishing.manualReferencePlaceholder
+                        }
                       />
                       <button
                         className="button secondary compact"
                         type="submit"
                       >
-                        Record Complete
+                        {text.pages.publishing.recordComplete}
                       </button>
                     </form>
                   ) : null}
@@ -112,7 +124,9 @@ export default async function Page() {
               ))}
             </div>
           ) : (
-            <div className="empty">No publishing packages yet.</div>
+            <div className="empty">
+              {text.pages.publishing.noPublishingPackages}
+            </div>
           )}
         </section>
       </div>

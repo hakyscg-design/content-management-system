@@ -1,3 +1,5 @@
+import { copy, type OperatorCopy } from "../i18n.js";
+import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 
@@ -5,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
+  const language = await getOperatorLanguage();
+  const text = copy[language];
   const packages = view.executionFlow.contentPackages.filter(
     (record) => record.canApprove
   );
@@ -16,23 +20,22 @@ export default async function Page() {
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Review</h2>
-          <p className="page-copy">
-            Record manual review decisions. Approval remains required before
-            publishing preparation.
-          </p>
+          <h2 className="page-title">{text.pages.review.title}</h2>
+          <p className="page-copy">{text.pages.review.copy}</p>
         </div>
       </header>
-      <OperationNotice operation={view.lastOperation} />
+      <OperationNotice
+        language={language}
+        operation={view.lastOperation}
+        text={text.common}
+      />
       <div className="grid">
         <section className="panel" aria-labelledby="review-create-title">
           <h2 className="panel-title" id="review-create-title">
-            Approve content
+            {text.pages.review.approveContent}
           </h2>
           {packages.length === 0 ? (
-            <div className="empty">
-              No content packages are ready for review approval.
-            </div>
+            <div className="empty">{text.pages.review.noPackages}</div>
           ) : null}
           <form
             className="form-stack"
@@ -40,7 +43,7 @@ export default async function Page() {
             method="post"
           >
             <label>
-              Content package
+              {text.pages.review.contentPackage}
               <select className="field" name="contentPackageId" required>
                 {packages.map((record) => (
                   <option key={record.id} value={record.id}>
@@ -50,7 +53,7 @@ export default async function Page() {
               </select>
             </label>
             <label>
-              Reviewer
+              {text.pages.review.reviewer}
               <input
                 className="field"
                 name="reviewerId"
@@ -58,11 +61,11 @@ export default async function Page() {
               />
             </label>
             <label>
-              Decision reason
+              {text.pages.review.decisionReason}
               <textarea
                 className="field"
                 name="reason"
-                placeholder="Manual approval note"
+                placeholder={text.pages.review.reasonPlaceholder}
               />
             </label>
             <button
@@ -70,15 +73,19 @@ export default async function Page() {
               type="submit"
               disabled={packages.length === 0}
             >
-              Approve For Publishing
+              {text.pages.review.approveForPublishing}
             </button>
           </form>
         </section>
         <section className="panel" aria-labelledby="review-list-title">
           <h2 className="panel-title" id="review-list-title">
-            Review decisions
+            {text.pages.review.reviewDecisions}
           </h2>
-          <RecordList records={reviews} empty="No review decisions yet." />
+          <RecordList
+            records={reviews}
+            empty={text.pages.review.noReviews}
+            text={text}
+          />
         </section>
       </div>
     </>
@@ -87,7 +94,8 @@ export default async function Page() {
 
 function RecordList({
   records,
-  empty
+  empty,
+  text
 }: {
   readonly records: readonly {
     readonly id: string;
@@ -95,6 +103,7 @@ function RecordList({
     readonly status: string;
   }[];
   readonly empty: string;
+  readonly text: OperatorCopy;
 }) {
   if (records.length === 0) return <div className="empty">{empty}</div>;
 
@@ -104,7 +113,9 @@ function RecordList({
         <article className="record" key={record.id}>
           <strong>{record.label}</strong>
           <div className="meta">{record.id}</div>
-          <div className="meta">State: {record.status}</div>
+          <div className="meta">
+            {text.common.state}: {record.status}
+          </div>
         </article>
       ))}
     </div>

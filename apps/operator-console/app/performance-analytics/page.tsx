@@ -1,3 +1,10 @@
+import {
+  copy,
+  localizeValue,
+  type OperatorCopy,
+  type OperatorLanguage
+} from "../i18n.js";
+import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 
@@ -5,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
+  const language = await getOperatorLanguage();
+  const text = copy[language];
   const readyForFeedback = view.executionFlow.publishingPackages.filter(
     (record) => record.canRecordPerformance
   );
@@ -23,26 +32,23 @@ export default async function Page() {
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Performance & Analytics</h2>
-          <p className="page-copy">
-            Record manual performance facts for completed publishing packages,
-            then write reports and learning summaries as explicit operator
-            actions.
-          </p>
+          <h2 className="page-title">{text.pages.performance.title}</h2>
+          <p className="page-copy">{text.pages.performance.copy}</p>
         </div>
       </header>
-      <OperationNotice operation={view.lastOperation} />
+      <OperationNotice
+        language={language}
+        operation={view.lastOperation}
+        text={text.common}
+      />
 
       <div className="grid">
         <section className="panel" aria-labelledby="performance-create-title">
           <h2 className="panel-title" id="performance-create-title">
-            Record performance feedback
+            {text.pages.performance.recordFeedback}
           </h2>
           {readyForFeedback.length === 0 ? (
-            <div className="empty">
-              No completed publishing packages are waiting for performance
-              feedback.
-            </div>
+            <div className="empty">{text.pages.performance.noCompleted}</div>
           ) : null}
           <form
             className="form-stack"
@@ -50,7 +56,7 @@ export default async function Page() {
             method="post"
           >
             <label>
-              Published content
+              {text.pages.performance.publishedContent}
               <select
                 className="field"
                 name="publishingPackageId"
@@ -65,20 +71,20 @@ export default async function Page() {
               </select>
             </label>
             <label>
-              Import source
+              {text.pages.performance.importSource}
               <input className="field" name="source" placeholder="manual" />
             </label>
             <div className="metric-grid">
               <label>
-                Views
+                {text.pages.performance.views}
                 <input className="field" min="0" name="views" type="number" />
               </label>
               <label>
-                Likes
+                {text.pages.performance.likes}
                 <input className="field" min="0" name="likes" type="number" />
               </label>
               <label>
-                Comments
+                {text.pages.performance.comments}
                 <input
                   className="field"
                   min="0"
@@ -87,11 +93,11 @@ export default async function Page() {
                 />
               </label>
               <label>
-                Shares
+                {text.pages.performance.shares}
                 <input className="field" min="0" name="shares" type="number" />
               </label>
               <label>
-                Watch minutes
+                {text.pages.performance.watchMinutes}
                 <input
                   className="field"
                   min="0"
@@ -105,19 +111,17 @@ export default async function Page() {
               type="submit"
               disabled={readyForFeedback.length === 0}
             >
-              Import Metrics
+              {text.pages.performance.importMetrics}
             </button>
           </form>
         </section>
 
         <section className="panel" aria-labelledby="report-create-title">
           <h2 className="panel-title" id="report-create-title">
-            Create analytics report
+            {text.pages.performance.createReport}
           </h2>
           {importsReadyForReport.length === 0 ? (
-            <div className="empty">
-              No performance imports are waiting for an analytics report.
-            </div>
+            <div className="empty">{text.pages.performance.noImports}</div>
           ) : null}
           <form
             className="form-stack"
@@ -125,7 +129,7 @@ export default async function Page() {
             method="post"
           >
             <label>
-              Performance import
+              {text.pages.performance.performanceImport}
               <select
                 className="field"
                 name="performanceImportId"
@@ -140,19 +144,19 @@ export default async function Page() {
               </select>
             </label>
             <label>
-              Report title
+              {text.pages.performance.reportTitle}
               <input
                 className="field"
                 name="title"
-                placeholder="Manual analytics report title"
+                placeholder={text.pages.performance.reportTitlePlaceholder}
               />
             </label>
             <label>
-              Analytics narrative
+              {text.pages.performance.narrative}
               <textarea
                 className="field"
                 name="narrative"
-                placeholder="Manual interpretation of the imported facts"
+                placeholder={text.pages.performance.narrativePlaceholder}
                 required
               />
             </label>
@@ -161,19 +165,17 @@ export default async function Page() {
               type="submit"
               disabled={importsReadyForReport.length === 0}
             >
-              Create Report
+              {text.pages.performance.createReport}
             </button>
           </form>
         </section>
 
         <section className="panel" aria-labelledby="learning-create-title">
           <h2 className="panel-title" id="learning-create-title">
-            Record learning summary
+            {text.pages.performance.recordLearningSummary}
           </h2>
           {reportsReadyForLearning.length === 0 ? (
-            <div className="empty">
-              No analytics reports are waiting for a learning summary.
-            </div>
+            <div className="empty">{text.pages.performance.noReports}</div>
           ) : null}
           <form
             className="form-stack"
@@ -181,7 +183,7 @@ export default async function Page() {
             method="post"
           >
             <label>
-              Analytics report
+              {text.pages.performance.analyticsReport}
               <select
                 className="field"
                 name="reportId"
@@ -196,11 +198,11 @@ export default async function Page() {
               </select>
             </label>
             <label>
-              Learning summary
+              {text.pages.performance.learningSummary}
               <textarea
                 className="field"
                 name="summary"
-                placeholder="Manual learning to carry into future work"
+                placeholder={text.pages.performance.learningPlaceholder}
                 required
               />
             </label>
@@ -209,45 +211,56 @@ export default async function Page() {
               type="submit"
               disabled={reportsReadyForLearning.length === 0}
             >
-              Record Learning
+              {text.pages.performance.recordLearning}
             </button>
           </form>
         </section>
 
         <section className="panel" aria-labelledby="imports-title">
           <h2 className="panel-title" id="imports-title">
-            Performance imports
+            {text.pages.performance.performanceImports}
           </h2>
           <RecordList
+            language={language}
             records={feedback.imports}
-            empty="No performance imports yet."
+            empty={text.pages.performance.noPerformanceImports}
+            text={text}
           />
         </section>
 
         <section className="panel" aria-labelledby="facts-title">
           <h2 className="panel-title" id="facts-title">
-            Performance facts
+            {text.pages.performance.performanceFacts}
           </h2>
-          <RecordList records={facts} empty="No performance facts yet." />
+          <RecordList
+            language={language}
+            records={facts}
+            empty={text.pages.performance.noPerformanceFacts}
+            text={text}
+          />
         </section>
 
         <section className="panel" aria-labelledby="reports-title">
           <h2 className="panel-title" id="reports-title">
-            Analytics reports
+            {text.pages.performance.analyticsReports}
           </h2>
           <RecordList
+            language={language}
             records={feedback.reports}
-            empty="No analytics reports yet."
+            empty={text.pages.performance.noAnalyticsReports}
+            text={text}
           />
         </section>
 
         <section className="panel" aria-labelledby="learning-title">
           <h2 className="panel-title" id="learning-title">
-            Learning summaries
+            {text.pages.performance.learningSummaries}
           </h2>
           <RecordList
+            language={language}
             records={feedback.learningSummaries}
-            empty="No learning summaries yet."
+            empty={text.pages.performance.noLearningSummaries}
+            text={text}
           />
         </section>
       </div>
@@ -257,7 +270,9 @@ export default async function Page() {
 
 function RecordList({
   records,
-  empty
+  empty,
+  language,
+  text
 }: {
   readonly records: readonly {
     readonly id: string;
@@ -266,6 +281,8 @@ function RecordList({
     readonly nextAction?: string;
   }[];
   readonly empty: string;
+  readonly language: OperatorLanguage;
+  readonly text: OperatorCopy;
 }) {
   if (records.length === 0) return <div className="empty">{empty}</div>;
 
@@ -275,9 +292,13 @@ function RecordList({
         <article className="record" key={record.id}>
           <strong>{record.label}</strong>
           <div className="meta">{record.id}</div>
-          <div className="meta">State: {record.status}</div>
+          <div className="meta">
+            {text.common.state}: {record.status}
+          </div>
           {record.nextAction ? (
-            <div className="meta">Next: {record.nextAction}</div>
+            <div className="meta">
+              {text.common.next}: {localizeValue(record.nextAction, language)}
+            </div>
           ) : null}
         </article>
       ))}

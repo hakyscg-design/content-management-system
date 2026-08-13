@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { OperatorCopy, OperatorLanguage } from "./i18n.js";
 
 type Asset = {
   id: string;
@@ -12,12 +13,14 @@ type Asset = {
 
 type AssetLibraryProps = {
   assets: Asset[];
+  language: OperatorLanguage;
+  text: OperatorCopy;
 };
 const STATUS_OPTIONS = ["draft", "ready", "published", "archived"] as const;
 
 type SortOption = "label-asc" | "label-desc" | "status-asc" | "id-asc";
 
-export function AssetLibrary({ assets }: AssetLibraryProps) {
+export function AssetLibrary({ assets, text }: AssetLibraryProps) {
   const [editableAssets, setEditableAssets] = useState(assets);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -159,10 +162,10 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
       >
         <input
           type="search"
-          placeholder="Search assets..."
+          placeholder={text.pages.assetLibrary.searchPlaceholder}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          aria-label="Search assets"
+          aria-label={text.pages.assetLibrary.searchAria}
           style={{
             width: "100%",
             padding: "0.75rem",
@@ -175,7 +178,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
-          aria-label="Filter assets by status"
+          aria-label={text.pages.assetLibrary.filterAria}
           style={{
             width: "100%",
             padding: "0.75rem",
@@ -185,7 +188,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
             fontSize: "0.95rem"
           }}
         >
-          <option value="all">All statuses</option>
+          <option value="all">{text.pages.assetLibrary.allStatuses}</option>
 
           {availableStatuses.map((status) => (
             <option key={status} value={status}>
@@ -197,7 +200,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
         <select
           value={sortOption}
           onChange={(event) => setSortOption(event.target.value as SortOption)}
-          aria-label="Sort assets"
+          aria-label={text.pages.assetLibrary.sortAria}
           style={{
             width: "100%",
             padding: "0.75rem",
@@ -207,10 +210,14 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
             fontSize: "0.95rem"
           }}
         >
-          <option value="label-asc">Label A-Z</option>
-          <option value="label-desc">Label Z-A</option>
-          <option value="status-asc">Status A-Z</option>
-          <option value="id-asc">ID A-Z</option>
+          <option value="label-asc">{text.pages.assetLibrary.labelAsc}</option>
+          <option value="label-desc">
+            {text.pages.assetLibrary.labelDesc}
+          </option>
+          <option value="status-asc">
+            {text.pages.assetLibrary.statusAsc}
+          </option>
+          <option value="id-asc">{text.pages.assetLibrary.idAsc}</option>
         </select>
 
         <div
@@ -223,7 +230,9 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
           }}
         >
           <div className="meta">
-            Showing {visibleAssets.length} of {editableAssets.length} assets
+            {text.pages.assetLibrary.showing} {visibleAssets.length}{" "}
+            {text.pages.assetLibrary.of} {editableAssets.length}{" "}
+            {text.pages.assetLibrary.assets}
           </div>
 
           <button
@@ -241,7 +250,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
               fontWeight: 600
             }}
           >
-            Reset
+            {text.common.reset}
           </button>
         </div>
       </div>
@@ -278,7 +287,8 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   <div className="meta">{record.id}</div>
 
                   <div className="meta">
-                    {authorityLabel(record.ownerServiceId)} - {record.status}
+                    {authorityLabel(record.ownerServiceId, text)} -{" "}
+                    {record.status}
                   </div>
                 </article>
               </button>
@@ -286,7 +296,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
           })}
         </div>
       ) : (
-        <div className="empty">No assets found.</div>
+        <div className="empty">{text.pages.assetLibrary.noAssetsFound}</div>
       )}
 
       {selectedAsset ? (
@@ -316,7 +326,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                 fontSize: "1rem"
               }}
             >
-              Asset Detail
+              {text.pages.assetLibrary.detail}
             </h3>
 
             <div
@@ -354,7 +364,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                       fontWeight: 600
                     }}
                   >
-                    Save
+                    {text.common.save}
                   </button>
 
                   <button
@@ -370,7 +380,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                       fontWeight: 600
                     }}
                   >
-                    Cancel
+                    {text.common.cancel}
                   </button>
                 </>
               ) : (
@@ -388,7 +398,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                     fontWeight: 600
                   }}
                 >
-                  Edit
+                  {text.common.edit}
                 </button>
               )}
 
@@ -405,7 +415,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   fontWeight: 600
                 }}
               >
-                Close
+                {text.common.close}
               </button>
             </div>
           </div>
@@ -424,7 +434,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   marginBottom: "0.2rem"
                 }}
               >
-                Label
+                {text.pages.assetLibrary.label}
               </dt>
               <dd style={{ margin: 0 }}>{selectedAsset.label}</dd>
             </div>
@@ -436,7 +446,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   marginBottom: "0.2rem"
                 }}
               >
-                ID
+                {text.common.id}
               </dt>
               <dd style={{ margin: 0 }}>{selectedAsset.id}</dd>
             </div>
@@ -448,10 +458,10 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   marginBottom: "0.2rem"
                 }}
               >
-                Authority
+                {text.pages.assetLibrary.authority}
               </dt>
               <dd style={{ margin: 0 }}>
-                {authorityLabel(selectedAsset.ownerServiceId)}
+                {authorityLabel(selectedAsset.ownerServiceId, text)}
               </dd>
             </div>
 
@@ -462,7 +472,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   marginBottom: "0.2rem"
                 }}
               >
-                Entity type
+                {text.pages.assetLibrary.entityType}
               </dt>
               <dd style={{ margin: 0 }}>{selectedAsset.entityType}</dd>
             </div>
@@ -474,14 +484,14 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
                   marginBottom: "0.2rem"
                 }}
               >
-                Status
+                {text.pages.assetLibrary.status}
               </dt>
               <dd style={{ margin: 0 }}>
                 {isEditing ? (
                   <select
                     value={draftStatus}
                     onChange={(event) => setDraftStatus(event.target.value)}
-                    aria-label="Edit asset status"
+                    aria-label={text.pages.assetLibrary.editStatus}
                     style={{
                       marginTop: "0.25rem",
                       padding: "0.55rem",
@@ -509,7 +519,7 @@ export function AssetLibrary({ assets }: AssetLibraryProps) {
   );
 }
 
-function authorityLabel(ownerServiceId: string): string {
+function authorityLabel(ownerServiceId: string, text: OperatorCopy): string {
   const labels: Record<string, string> = {
     "FTV-SVC-01": "Source & Asset Registry",
     "FTV-SVC-02": "Media Management",
@@ -524,5 +534,5 @@ function authorityLabel(ownerServiceId: string): string {
     "FTV-SVC-11": "Core Data Administration"
   };
 
-  return labels[ownerServiceId] ?? "CMS service";
+  return labels[ownerServiceId] ?? text.pages.assetLibrary.cmsService;
 }
