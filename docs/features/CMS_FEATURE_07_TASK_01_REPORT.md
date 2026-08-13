@@ -46,11 +46,12 @@ Task 1 started from accepted CMS v1.0 baseline on `main` at `1f6d1468c6e1edf7291
 
 ## PR
 
-- Draft PR: pending.
+- Draft PR: https://github.com/hakyscg-design/content-management-system/pull/7
 
 ## Ending SHA
 
-- Pending commit.
+- PR creation head SHA: `3dff46137d1760a6db969967134ac055b39a483a`
+- Final branch head after this report evidence update is recorded in the operator handoff.
 
 ## Final Status
 
