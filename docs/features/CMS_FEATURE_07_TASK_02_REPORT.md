@@ -66,11 +66,12 @@ Repository reality: PR #7 was already merged before this correction. The correct
 - Original PR #7: https://github.com/hakyscg-design/content-management-system/pull/7
 - Original Feature 07 release tag: `cms-feature-07-en-vn-language-layer-release`
 - Correction branch: `feature/cms-feature-07-vn-localization-correction`
-- Correction PR: to be recorded after PR creation.
-- Correction merge SHA: to be recorded after merge.
-- Final release tag: to be recorded after tag creation.
-- Freeze/release status: pending correction PR merge and tag.
+- Correction PR: https://github.com/hakyscg-design/content-management-system/pull/8
+- Correction branch SHA: `89373cb42ff0c9216101674ff972ce120794aa1c`
+- Correction merge SHA: blocked pending explicit operator approval.
+- Final release tag: blocked pending correction merge.
+- Freeze/release status: blocked pending explicit operator approval because PR #8 is a corrective PR after the already-merged PR #7 and runtime browser smoke was intentionally skipped for operator verification.
 
 ## Final Status
 
-Pending correction release closure.
+BLOCKED - AWAITING OPERATOR APPROVAL FOR CORRECTION PR MERGE/RELEASE
