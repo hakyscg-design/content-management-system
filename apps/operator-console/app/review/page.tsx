@@ -1,4 +1,10 @@
-import { copy, type OperatorCopy } from "../i18n.js";
+import {
+  copy,
+  localizeRecordLabel,
+  localizeValue,
+  type OperatorCopy,
+  type OperatorLanguage
+} from "../i18n.js";
 import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
@@ -47,7 +53,7 @@ export default async function Page() {
               <select className="field" name="contentPackageId" required>
                 {packages.map((record) => (
                   <option key={record.id} value={record.id}>
-                    {record.label}
+                    {localizeRecordLabel(record.label, language)}
                   </option>
                 ))}
               </select>
@@ -57,7 +63,7 @@ export default async function Page() {
               <input
                 className="field"
                 name="reviewerId"
-                placeholder="local-operator"
+                placeholder={text.pages.review.reviewerPlaceholder}
               />
             </label>
             <label>
@@ -82,6 +88,7 @@ export default async function Page() {
             {text.pages.review.reviewDecisions}
           </h2>
           <RecordList
+            language={language}
             records={reviews}
             empty={text.pages.review.noReviews}
             text={text}
@@ -95,6 +102,7 @@ export default async function Page() {
 function RecordList({
   records,
   empty,
+  language,
   text
 }: {
   readonly records: readonly {
@@ -103,6 +111,7 @@ function RecordList({
     readonly status: string;
   }[];
   readonly empty: string;
+  readonly language: OperatorLanguage;
   readonly text: OperatorCopy;
 }) {
   if (records.length === 0) return <div className="empty">{empty}</div>;
@@ -111,10 +120,10 @@ function RecordList({
     <div className="record-list">
       {records.map((record) => (
         <article className="record" key={record.id}>
-          <strong>{record.label}</strong>
+          <strong>{localizeRecordLabel(record.label, language)}</strong>
           <div className="meta">{record.id}</div>
           <div className="meta">
-            {text.common.state}: {record.status}
+            {text.common.state}: {localizeValue(record.status, language)}
           </div>
         </article>
       ))}

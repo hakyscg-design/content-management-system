@@ -3,6 +3,7 @@ import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
 import {
   copy,
+  localizeRecordLabel,
   localizeValue,
   type OperatorCopy,
   type OperatorLanguage
@@ -106,10 +107,10 @@ function RecordList({
     <div className="record-list">
       {records.map((record) => (
         <article className="record" key={record.id}>
-          <strong>{record.label}</strong>
+          <strong>{localizeRecordLabel(record.label, language)}</strong>
           <div className="meta">{record.id}</div>
           <div className="meta">
-            {text.common.state}: {record.status}
+            {text.common.state}: {localizeValue(record.status, language)}
           </div>
           <div className="meta">
             {text.common.next}: {localizeValue(record.nextAction, language)}

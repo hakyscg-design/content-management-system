@@ -1,4 +1,4 @@
-import { copy, localizeValue } from "../i18n.js";
+import { copy, localizeRecordLabel, localizeValue } from "../i18n.js";
 import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
@@ -47,7 +47,7 @@ export default async function Page() {
               <select className="field" name="contentPackageId" required>
                 {packages.map((record) => (
                   <option key={record.id} value={record.id}>
-                    {record.label}
+                    {localizeRecordLabel(record.label, language)}
                   </option>
                 ))}
               </select>
@@ -85,10 +85,11 @@ export default async function Page() {
             <div className="record-list">
               {publishing.map((record) => (
                 <article className="record" key={record.id}>
-                  <strong>{record.label}</strong>
+                  <strong>{localizeRecordLabel(record.label, language)}</strong>
                   <div className="meta">{record.id}</div>
                   <div className="meta">
-                    {text.common.state}: {record.status}
+                    {text.common.state}:{" "}
+                    {localizeValue(record.status, language)}
                   </div>
                   <div className="meta">
                     {text.common.next}:{" "}

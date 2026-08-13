@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { OperatorCopy, OperatorLanguage } from "./i18n.js";
+import {
+  localizeRecordLabel,
+  localizeServiceLabel,
+  localizeValue,
+  type OperatorCopy,
+  type OperatorLanguage
+} from "./i18n.js";
 
 type Asset = {
   id: string;
@@ -20,7 +26,7 @@ const STATUS_OPTIONS = ["draft", "ready", "published", "archived"] as const;
 
 type SortOption = "label-asc" | "label-desc" | "status-asc" | "id-asc";
 
-export function AssetLibrary({ assets, text }: AssetLibraryProps) {
+export function AssetLibrary({ assets, language, text }: AssetLibraryProps) {
   const [editableAssets, setEditableAssets] = useState(assets);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -282,13 +288,13 @@ export function AssetLibrary({ assets, text }: AssetLibraryProps) {
                     outlineOffset: isSelected ? "2px" : "0"
                   }}
                 >
-                  <strong>{record.label}</strong>
+                  <strong>{localizeRecordLabel(record.label, language)}</strong>
 
                   <div className="meta">{record.id}</div>
 
                   <div className="meta">
-                    {authorityLabel(record.ownerServiceId, text)} -{" "}
-                    {record.status}
+                    {authorityLabel(record.ownerServiceId, language, text)} -{" "}
+                    {localizeValue(record.status, language)}
                   </div>
                 </article>
               </button>
@@ -436,7 +442,9 @@ export function AssetLibrary({ assets, text }: AssetLibraryProps) {
               >
                 {text.pages.assetLibrary.label}
               </dt>
-              <dd style={{ margin: 0 }}>{selectedAsset.label}</dd>
+              <dd style={{ margin: 0 }}>
+                {localizeRecordLabel(selectedAsset.label, language)}
+              </dd>
             </div>
 
             <div>
@@ -461,7 +469,7 @@ export function AssetLibrary({ assets, text }: AssetLibraryProps) {
                 {text.pages.assetLibrary.authority}
               </dt>
               <dd style={{ margin: 0 }}>
-                {authorityLabel(selectedAsset.ownerServiceId, text)}
+                {authorityLabel(selectedAsset.ownerServiceId, language, text)}
               </dd>
             </div>
 
@@ -503,12 +511,12 @@ export function AssetLibrary({ assets, text }: AssetLibraryProps) {
                   >
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {localizeValue(status, language)}
                       </option>
                     ))}
                   </select>
                 ) : (
-                  selectedAsset.status
+                  localizeValue(selectedAsset.status, language)
                 )}
               </dd>
             </div>
@@ -519,7 +527,11 @@ export function AssetLibrary({ assets, text }: AssetLibraryProps) {
   );
 }
 
-function authorityLabel(ownerServiceId: string, text: OperatorCopy): string {
+function authorityLabel(
+  ownerServiceId: string,
+  language: OperatorLanguage,
+  text: OperatorCopy
+): string {
   const labels: Record<string, string> = {
     "FTV-SVC-01": "Source & Asset Registry",
     "FTV-SVC-02": "Media Management",
@@ -534,5 +546,9 @@ function authorityLabel(ownerServiceId: string, text: OperatorCopy): string {
     "FTV-SVC-11": "Core Data Administration"
   };
 
-  return labels[ownerServiceId] ?? text.pages.assetLibrary.cmsService;
+  return localizeServiceLabel(
+    ownerServiceId,
+    labels[ownerServiceId] ?? text.pages.assetLibrary.cmsService,
+    language
+  );
 }

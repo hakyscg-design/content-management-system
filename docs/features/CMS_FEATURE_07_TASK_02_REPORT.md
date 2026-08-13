@@ -2,68 +2,76 @@
 
 ## Scope
 
-Task 2 continued Feature 07 branch `feature/cms-global-en-vn-language-layer` and PR #7 from Task 1. The goal was to close, validate, and release the global EN/VN operator language layer without adding unrelated capabilities or changing CMS v1.0 behavior.
+Task 2 completed the global EN/VN operator language layer for the Content Management System. A post-release correction was required because VN runtime localization acceptance found unaccented Vietnamese and ordinary English UI copy still visible to operators.
 
-## Audit Findings
+Repository reality: PR #7 was already merged before this correction. The correction was completed on branch `feature/cms-feature-07-vn-localization-correction` and is intended as the Feature 07 localization-quality closure.
 
-- API-level invalid project and invalid Administration action responses remained English.
-- The unused route traceability helper still contained English operator-facing fallback text.
-- The Task 1 report final status line had mojibaked punctuation from console encoding.
-- A separate uncommitted stylesheet redesign was present locally. It was unrelated to localization and was preserved in `stash@{0}` rather than included in the release candidate.
+## Correction Findings
+
+- VN navigation and workspace copy included unaccented Vietnamese in visible operator strings.
+- Generated execution labels such as `Ready asset` could still appear in VN mode.
+- Generated owner-service labels and lifecycle/status text still exposed ordinary English in VN mode.
+- Administration/runtime copy kept ordinary English terms such as `Database` and `runtime` where Vietnamese UI wording was appropriate.
+- Browser runtime smoke was not completed in this correction pass because local dev-server restart troubleshooting was explicitly stopped and delegated to operator verification.
 
 ## Implementation
 
-- Added request-cookie language resolution for API handlers.
-- Localized invalid project and invalid Administration action JSON errors.
-- Localized route traceability helper labels and empty state.
-- Extended focused language tests for:
-  - global cookie language resolution from requests
-  - API error localization
-  - language remaining outside project configuration
-  - canonical values remaining unchanged
-- Repaired Task 1 report punctuation.
+- Reworked VN operator copy to natural Vietnamese with Unicode diacritics across the global shell, navigation, workspaces, forms, notices, empty states, errors, workflow guidance, and Administration copy.
+- Preserved the exact official product name `Content Management System`.
+- Preserved project names, project IDs, URLs/routes, service IDs, stored business data, canonical values/enums, command text, and genuine technical identifiers such as `SQLite`.
+- Added display-only localization helpers for generated record labels, owner-service labels, lifecycle/status values, and operation result messages.
+- Updated operator workspaces to localize generated labels/statuses for display while keeping submitted values and persisted records unchanged.
+- Added focused regression checks for:
+  - known unaccented Vietnamese examples
+  - ordinary English UI fragments in VN localized values
+  - generated label localization, including `Ready asset` -> `Tài sản sẵn sàng`
+  - service label localization
+  - EN/VN switching and request-cookie persistence
+  - language remaining global across project selection and outside project configuration
 
 ## Preservation
 
-- Project names, project IDs, URLs, routes, service IDs, form field names, stored record labels, stored statuses, keywords, canonical values, and business data remain unchanged.
-- Language remains global through `cms-operator-language`; it is not a project setting and is not persisted in project-scoped records.
-- Project isolation, service ownership, governance/audit, manual-first workflow, and CMS v1.0 behavior are preserved.
+- No business data, stored user data, project records, routes, IDs, service IDs, canonical values, or enum values were modified.
+- Language remains global through `cms-operator-language`; no per-project language setting was added.
+- Project isolation, owner-service authority, governance/audit, local-first persistence, manual-first behavior, and CMS v1.0 workflows are preserved.
+- No TKIC, Research Engine, AI, platform API, automation, or unrelated UI redesign was added.
 
 ## Tests And Validation
 
 - Focused EN/VN regression:
-  - `pnpm test tests/local-tool/l07-language-layer.test.ts tests/local-tool/l03-static-boundaries.test.ts`
-  - Result: PASS, 2 files / 11 tests.
-- Typecheck:
-  - `pnpm typecheck`
-  - Result: PASS.
-- Lint:
-  - `pnpm lint`
-  - Result: PASS.
-- Operator-console production build:
-  - `pnpm --filter @ftv/operator-console exec next build`
-  - Result: PASS.
-  - Note: Next emitted the existing advisory that the Next.js ESLint plugin is not detected.
+  - `pnpm test -- tests/local-tool/l07-language-layer.test.ts`
+  - Result: PASS, 1 file / 8 tests.
+- Static VN value audit:
+  - Source-value scanner over VN UI copy and value translations.
+  - Result: PASS, 275 VN string values checked; zero known bad fragments found.
 - Full canonical validation:
   - `pnpm validate`
-  - Result: PASS, 12 files / 81 tests, workspace validation passed.
-- Runtime EN/VN smoke:
-  - Restarted the local dev server without data reset or migration.
-  - Checked `/`, `/source-assets`, `/content-production`, `/workflow`, `/review`, `/publishing`, `/performance-analytics`, and `/administration`.
-  - Result: PASS in EN and VN; VN rendered `html lang="vi"`, the language toggle remained active, and `Football Troll Vault` remained unchanged.
-- API error smoke:
-  - Invalid project with VN cookie returned `Khong ro du an CMS.`
-  - Invalid Administration action with VN cookie returned VN title/message.
+  - Result: PASS, format check, lint, typecheck, 12 test files / 83 tests, workspace validation passed.
+- Operator-console production build:
+  - Canonical package build script was unavailable: `pnpm --filter @ftv/operator-console build` returned `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT`.
+  - Equivalent Next production build command used: `node_modules\.bin\next.cmd build apps/operator-console`.
+  - Result: PASS.
+  - Notes: Next emitted existing non-blocking advisories about webpack cache snapshotting and the Next.js ESLint plugin.
+- Runtime EN/VN browser smoke:
+  - Result: SKIPPED - operator verification.
+  - Reason: operator instructed Codex to stop local dev-server/background-process troubleshooting and treat runtime launch/smoke as an operator-side check.
+
+## Known Gaps
+
+- Runtime browser smoke across every workspace in both EN and VN remains an operator-side verification item for this correction.
+- The operator-console package still lacks a dedicated `build` script; production build was verified through the installed Next CLI.
 
 ## Release Evidence
 
-- PR: https://github.com/hakyscg-design/content-management-system/pull/7
-- Branch release-candidate SHA before merge: `20d16490b87e35ad403add28ff487cab8ee4aeb6`
-- PR merge SHA: `33c7dd9a681df29dc3488fdef20ce38c4b528ec7`
-- Final release evidence commit: recorded in the operator handoff.
-- Release tag: `cms-feature-07-en-vn-language-layer-release`
-- Freeze/release status: frozen and released.
+- Original PR #7: https://github.com/hakyscg-design/content-management-system/pull/7
+- Original Feature 07 release tag: `cms-feature-07-en-vn-language-layer-release`
+- Correction branch: `feature/cms-feature-07-vn-localization-correction`
+- Correction PR: https://github.com/hakyscg-design/content-management-system/pull/8
+- Correction branch SHA: `89373cb42ff0c9216101674ff972ce120794aa1c`
+- Correction merge SHA: blocked pending explicit operator approval.
+- Final release tag: blocked pending correction merge.
+- Freeze/release status: blocked pending explicit operator approval because PR #8 is a corrective PR after the already-merged PR #7 and runtime browser smoke was intentionally skipped for operator verification.
 
 ## Final Status
 
-FEATURE 07 COMPLETE — EN/VN LANGUAGE LAYER FROZEN & RELEASED
+BLOCKED - AWAITING OPERATOR APPROVAL FOR CORRECTION PR MERGE/RELEASE
