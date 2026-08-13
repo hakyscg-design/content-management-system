@@ -5,6 +5,7 @@ import {
   copy,
   localizeValue,
   operatorLanguages,
+  resolveRequestLanguage,
   resolveOperatorLanguage
 } from "../../apps/operator-console/app/i18n.js";
 
@@ -54,6 +55,51 @@ describe("Feature 07 language layer", () => {
     expect(route).toContain("Max-Age=31536000");
     expect(route).not.toContain("projectId");
     expect(route).not.toContain("updateProjectAdministrationSettings");
+    expect(projectRouteSource()).not.toContain(OPERATOR_LANGUAGE_COOKIE);
     expect(administrationRoute).not.toContain(OPERATOR_LANGUAGE_COOKIE);
   });
+
+  it("resolves API response language from the global request cookie", () => {
+    expect(
+      resolveRequestLanguage(
+        new Request("http://localhost", {
+          headers: { cookie: "cms-active-project=synthetic-project" }
+        })
+      )
+    ).toBe("en");
+    expect(
+      resolveRequestLanguage(
+        new Request("http://localhost", {
+          headers: {
+            cookie:
+              "cms-active-project=synthetic-project; cms-operator-language=vn"
+          }
+        })
+      )
+    ).toBe("vn");
+  });
+
+  it("localizes direct API validation errors without changing project data", () => {
+    const projectRoute = projectRouteSource();
+    const administrationRoute = readFileSync(
+      join(root, "apps/operator-console/app/api/local/administration/route.ts"),
+      "utf8"
+    );
+
+    expect(copy.vn.api.unknownProject).toBe("Khong ro du an CMS.");
+    expect(projectRoute).toContain("text.api.unknownProject");
+    expect(administrationRoute).toContain(
+      "text.api.administrationRejectedTitle"
+    );
+    expect(administrationRoute).toContain(
+      "text.api.administrationRejectedMessage"
+    );
+  });
 });
+
+function projectRouteSource(): string {
+  return readFileSync(
+    join(root, "apps/operator-console/app/api/local/project/route.ts"),
+    "utf8"
+  );
+}

@@ -1,3 +1,5 @@
+import { copy } from "./i18n.js";
+import { getOperatorLanguage } from "./language-context.js";
 import { getOperatorDashboardView } from "./project-context.js";
 
 interface SectionPageProps {
@@ -12,6 +14,7 @@ export async function SectionPage({
   route
 }: SectionPageProps) {
   const view = await getOperatorDashboardView();
+  const text = copy[await getOperatorLanguage()].pages.traceability;
   const trace = view.routes.find((item) => item.route === route);
 
   return (
@@ -25,16 +28,20 @@ export async function SectionPage({
       {trace ? (
         <section className="panel" aria-labelledby="trace-title">
           <h2 className="panel-title" id="trace-title">
-            Route traceability
+            {text.title}
           </h2>
           <div className="record">
             <strong>{trace.capability}</strong>
-            <div className="meta">Owner: {trace.owningService}</div>
-            <div className="meta">Status: {trace.status}</div>
+            <div className="meta">
+              {text.owner}: {trace.owningService}
+            </div>
+            <div className="meta">
+              {text.status}: {trace.status}
+            </div>
           </div>
         </section>
       ) : (
-        <div className="empty">No traceability row exists for this route.</div>
+        <div className="empty">{text.empty}</div>
       )}
     </>
   );

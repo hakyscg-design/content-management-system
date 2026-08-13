@@ -60,6 +60,11 @@ export const copy = {
       close: "Close",
       reset: "Reset"
     },
+    api: {
+      administrationRejectedTitle: "Administration action rejected",
+      administrationRejectedMessage: "Unknown administration action.",
+      unknownProject: "Unknown CMS project."
+    },
     pages: {
       overview: {
         title: "Operational Overview",
@@ -257,6 +262,12 @@ export const copy = {
         requestFailedMessage:
           "The local operator console could not complete the request.",
         empty: "No operation has been submitted from this screen yet."
+      },
+      traceability: {
+        title: "Route traceability",
+        owner: "Owner",
+        status: "Status",
+        empty: "No traceability row exists for this route."
       }
     }
   },
@@ -306,6 +317,11 @@ export const copy = {
       edit: "Sua",
       close: "Dong",
       reset: "Dat lai"
+    },
+    api: {
+      administrationRejectedTitle: "Hanh dong Administration bi tu choi",
+      administrationRejectedMessage: "Khong ro hanh dong Administration.",
+      unknownProject: "Khong ro du an CMS."
     },
     pages: {
       overview: {
@@ -504,6 +520,12 @@ export const copy = {
         requestFailedMessage:
           "Console operator cuc bo khong the hoan tat request.",
         empty: "Chua co thao tac nao duoc gui tu man hinh nay."
+      },
+      traceability: {
+        title: "Truy vet route",
+        owner: "Chu quan",
+        status: "Trang thai",
+        empty: "Khong co dong truy vet nao cho route nay."
       }
     }
   }
@@ -594,4 +616,13 @@ export function localizeValue(
       "Da cap nhat cau hinh CMS cho "
     )
     .replace(/^Stored /, "Da luu ");
+}
+
+export function resolveRequestLanguage(request: Request): OperatorLanguage {
+  const cookie = request.headers
+    .get("cookie")
+    ?.split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${OPERATOR_LANGUAGE_COOKIE}=`));
+  return resolveOperatorLanguage(cookie?.split("=").slice(1).join("="));
 }
