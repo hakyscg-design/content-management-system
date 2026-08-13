@@ -3,6 +3,8 @@ import { join } from "node:path";
 import {
   OPERATOR_LANGUAGE_COOKIE,
   copy,
+  localizeRecordLabel,
+  localizeServiceLabel,
   localizeValue,
   operatorLanguages,
   resolveRequestLanguage,
@@ -25,18 +27,62 @@ describe("Feature 07 language layer", () => {
       "vn"
     ]);
     expect(copy.en.nav.administration).toBe("Administration");
-    expect(copy.vn.nav.administration).toBe("Quan tri");
-    expect(copy.vn.shell.projectLabel).toBe("Du an dang hoat dong");
-    expect(copy.vn.shell.languageLabel).toBe("Ngon ngu");
+    expect(copy.vn.nav.administration).toBe("Quản trị");
+    expect(copy.vn.shell.projectLabel).toBe("Dự án đang hoạt động");
+    expect(copy.vn.shell.languageLabel).toBe("Ngôn ngữ");
   });
 
   it("localizes runtime guidance without changing canonical values", () => {
     expect(localizeValue("Create content package", "vn")).toBe(
-      "Tao goi noi dung"
+      "Tạo gói nội dung"
     );
     expect(localizeValue("record-id-001", "vn")).toBe("record-id-001");
     expect(localizeValue("FTV-SVC-01", "vn")).toBe("FTV-SVC-01");
     expect(localizeValue("Create content package", "en")).toBe(
+      "Create content package"
+    );
+  });
+
+  it("localizes known generated labels and statuses without mutating canonical values", () => {
+    expect(localizeRecordLabel("Ready asset", "vn")).toBe("Tài sản sẵn sàng");
+    expect(localizeRecordLabel("Custom operator label", "vn")).toBe(
+      "Custom operator label"
+    );
+    expect(
+      localizeServiceLabel("FTV-SVC-01", "Source & Asset Registry", "vn")
+    ).toBe("Đăng ký Nguồn & Tài sản");
+    expect(localizeValue("ready", "vn")).toBe("sẵn sàng");
+    expect(localizeValue("ready", "en")).toBe("ready");
+  });
+
+  it("does not ship known unaccented Vietnamese or ordinary English UI terms in VN copy", () => {
+    const vnText = collectStringValues(copy.vn).join("\n");
+    const knownBadFragments = [
+      "Tong quan",
+      "Ngon ngu",
+      "Chuyen",
+      "Nguon & Tai san",
+      "San xuat noi dung",
+      "Quy trinh",
+      "Duyet",
+      "Chuan bi dang",
+      "Hieu suat & Phan tich",
+      "Quan tri",
+      "Ready asset",
+      "Media cuc bo",
+      "Tao backup",
+      "operator",
+      "workspace",
+      "intake",
+      "publishing"
+    ];
+
+    for (const fragment of knownBadFragments) {
+      expect(vnText).not.toContain(fragment);
+    }
+
+    expect(localizeRecordLabel("Ready asset", "vn")).not.toBe("Ready asset");
+    expect(localizeValue("Create content package", "vn")).not.toBe(
       "Create content package"
     );
   });
@@ -86,7 +132,7 @@ describe("Feature 07 language layer", () => {
       "utf8"
     );
 
-    expect(copy.vn.api.unknownProject).toBe("Khong ro du an CMS.");
+    expect(copy.vn.api.unknownProject).toBe("Không rõ dự án CMS.");
     expect(projectRoute).toContain("text.api.unknownProject");
     expect(administrationRoute).toContain(
       "text.api.administrationRejectedTitle"
@@ -102,4 +148,20 @@ function projectRouteSource(): string {
     join(root, "apps/operator-console/app/api/local/project/route.ts"),
     "utf8"
   );
+}
+
+function collectStringValues(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectStringValues(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).flatMap((item) => collectStringValues(item));
+  }
+
+  return [];
 }

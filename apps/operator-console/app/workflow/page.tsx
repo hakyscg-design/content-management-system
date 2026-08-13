@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   copy,
+  localizeRecordLabel,
   localizeValue,
   type OperatorCopy,
   type OperatorLanguage
@@ -40,10 +41,10 @@ export default async function Page() {
             <div className="record-list">
               {control.pendingActions.map((item) => (
                 <article className="record" key={`${item.route}:${item.id}`}>
-                  <strong>{item.label}</strong>
+                  <strong>{localizeRecordLabel(item.label, language)}</strong>
                   <div className="meta">{item.id}</div>
                   <div className="meta">
-                    {text.common.state}: {item.state}
+                    {text.common.state}: {localizeValue(item.state, language)}
                   </div>
                   <div className="meta">
                     {text.common.next}: {localizeValue(item.action, language)}
@@ -191,7 +192,11 @@ function RecordList({
       {records.map((record) => (
         <article className="record" key={record.id}>
           <strong>
-            {localizeValue(record.title ?? record.label ?? record.id, language)}
+            {record.title
+              ? localizeValue(record.title, language)
+              : record.label
+                ? localizeRecordLabel(record.label, language)
+                : record.id}
           </strong>
           <div className="meta">{record.id}</div>
           {record.message ? (
@@ -201,7 +206,8 @@ function RecordList({
           ) : null}
           {(record.currentState ?? record.status) ? (
             <div className="meta">
-              {text.common.state}: {record.currentState ?? record.status}
+              {text.common.state}:{" "}
+              {localizeValue(record.currentState ?? record.status, language)}
             </div>
           ) : null}
           {record.ok !== undefined ? (

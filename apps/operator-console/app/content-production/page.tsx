@@ -1,5 +1,6 @@
 import {
   copy,
+  localizeRecordLabel,
   localizeValue,
   type OperatorCopy,
   type OperatorLanguage
@@ -52,7 +53,7 @@ export default async function Page() {
               <select className="field" name="assetId" required>
                 {assets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
-                    {asset.label}
+                    {localizeRecordLabel(asset.label, language)}
                   </option>
                 ))}
               </select>
@@ -129,10 +130,10 @@ function RecordList({
     <div className="record-list">
       {records.map((record) => (
         <article className="record" key={record.id}>
-          <strong>{record.label}</strong>
+          <strong>{localizeRecordLabel(record.label, language)}</strong>
           <div className="meta">{record.id}</div>
           <div className="meta">
-            {text.common.state}: {record.status}
+            {text.common.state}: {localizeValue(record.status, language)}
           </div>
           <div className="meta">
             {text.common.next}: {localizeValue(record.nextAction, language)}
