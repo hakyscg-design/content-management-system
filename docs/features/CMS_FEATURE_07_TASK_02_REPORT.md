@@ -58,11 +58,12 @@ Task 2 continued Feature 07 branch `feature/cms-global-en-vn-language-layer` and
 ## Release Evidence
 
 - PR: https://github.com/hakyscg-design/content-management-system/pull/7
-- Branch release-candidate SHA before merge: recorded in the operator handoff.
-- Main SHA: pending merge.
-- Release tag: pending.
-- Freeze/release status: pending merge and tag.
+- Branch release-candidate SHA before merge: `20d16490b87e35ad403add28ff487cab8ee4aeb6`
+- PR merge SHA: `33c7dd9a681df29dc3488fdef20ce38c4b528ec7`
+- Final release evidence commit: recorded in the operator handoff.
+- Release tag: `cms-feature-07-en-vn-language-layer-release`
+- Freeze/release status: frozen and released.
 
 ## Final Status
 
-Pending merge, tag, freeze, and release.
+FEATURE 07 COMPLETE — EN/VN LANGUAGE LAYER FROZEN & RELEASED
