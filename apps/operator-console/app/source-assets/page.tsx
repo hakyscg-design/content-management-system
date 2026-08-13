@@ -1,28 +1,38 @@
+import { getOperatorLanguage } from "../language-context.js";
 import { OperationNotice } from "../operation-notice.js";
 import { getOperatorDashboardView } from "../project-context.js";
+import {
+  copy,
+  localizeValue,
+  type OperatorCopy,
+  type OperatorLanguage
+} from "../i18n.js";
 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const view = await getOperatorDashboardView();
+  const language = await getOperatorLanguage();
+  const text = copy[language];
   const assets = view.executionFlow.assets;
 
   return (
     <>
       <header className="page-header">
         <div>
-          <h2 className="page-title">Source & Assets</h2>
-          <p className="page-copy">
-            Capture approved manual sources and register assets for content
-            production.
-          </p>
+          <h2 className="page-title">{text.pages.sourceAssets.title}</h2>
+          <p className="page-copy">{text.pages.sourceAssets.copy}</p>
         </div>
       </header>
-      <OperationNotice operation={view.lastOperation} />
+      <OperationNotice
+        language={language}
+        operation={view.lastOperation}
+        text={text.common}
+      />
       <div className="grid">
         <section className="panel" aria-labelledby="asset-create-title">
           <h2 className="panel-title" id="asset-create-title">
-            Register asset
+            {text.pages.sourceAssets.registerAsset}
           </h2>
           <form
             className="form-stack"
@@ -30,39 +40,44 @@ export default async function Page() {
             method="post"
           >
             <label>
-              Source URL
+              {text.pages.sourceAssets.sourceUrl}
               <input
                 className="field"
                 name="sourceUrl"
-                placeholder="manual://source or https://..."
+                placeholder={text.pages.sourceAssets.sourceUrlPlaceholder}
               />
             </label>
             <label>
-              Asset label
+              {text.pages.sourceAssets.assetLabel}
               <input
                 className="field"
                 name="label"
-                placeholder="Operator-facing asset label"
+                placeholder={text.pages.sourceAssets.assetLabelPlaceholder}
               />
             </label>
             <label>
-              Evidence
+              {text.pages.sourceAssets.evidence}
               <textarea
                 className="field"
                 name="evidence"
-                placeholder="Manual provenance or rights evidence"
+                placeholder={text.pages.sourceAssets.evidencePlaceholder}
               />
             </label>
             <button className="button" type="submit">
-              Register Ready Asset
+              {text.pages.sourceAssets.registerReadyAsset}
             </button>
           </form>
         </section>
         <section className="panel" aria-labelledby="asset-list-title">
           <h2 className="panel-title" id="asset-list-title">
-            Ready assets
+            {text.pages.sourceAssets.readyAssets}
           </h2>
-          <RecordList records={assets} empty="No assets are registered yet." />
+          <RecordList
+            language={language}
+            records={assets}
+            empty={text.pages.sourceAssets.noAssets}
+            text={text}
+          />
         </section>
       </div>
     </>
@@ -71,7 +86,9 @@ export default async function Page() {
 
 function RecordList({
   records,
-  empty
+  empty,
+  language,
+  text
 }: {
   readonly records: readonly {
     readonly id: string;
@@ -80,6 +97,8 @@ function RecordList({
     readonly nextAction: string;
   }[];
   readonly empty: string;
+  readonly language: OperatorLanguage;
+  readonly text: OperatorCopy;
 }) {
   if (records.length === 0) return <div className="empty">{empty}</div>;
 
@@ -89,8 +108,12 @@ function RecordList({
         <article className="record" key={record.id}>
           <strong>{record.label}</strong>
           <div className="meta">{record.id}</div>
-          <div className="meta">State: {record.status}</div>
-          <div className="meta">Next: {record.nextAction}</div>
+          <div className="meta">
+            {text.common.state}: {record.status}
+          </div>
+          <div className="meta">
+            {text.common.next}: {localizeValue(record.nextAction, language)}
+          </div>
         </article>
       ))}
     </div>

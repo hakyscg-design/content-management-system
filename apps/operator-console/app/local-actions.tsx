@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import {
+  localizeValue,
+  type OperatorCopy,
+  type OperatorLanguage
+} from "./i18n.js";
 
 interface OperationResult {
   readonly ok: boolean;
@@ -15,7 +20,13 @@ async function postOperation(path: string): Promise<OperationResult> {
   return (await response.json()) as OperationResult;
 }
 
-export function LocalActions() {
+export function LocalActions({
+  language,
+  text
+}: {
+  readonly language: OperatorLanguage;
+  readonly text: OperatorCopy;
+}) {
   const [result, setResult] = useState<OperationResult | undefined>();
   const [loading, setLoading] = useState<
     "asset" | "invalid" | "media" | undefined
@@ -28,8 +39,8 @@ export function LocalActions() {
     } catch {
       setResult({
         ok: false,
-        title: "Local request failed",
-        message: "The local operator console could not complete the request."
+        title: text.pages.localActions.requestFailedTitle,
+        message: text.pages.localActions.requestFailedMessage
       });
     } finally {
       setLoading(undefined);
@@ -39,12 +50,9 @@ export function LocalActions() {
   return (
     <section className="panel" aria-labelledby="operations-title">
       <h2 className="panel-title" id="operations-title">
-        Owner-routed operations
+        {text.pages.localActions.title}
       </h2>
-      <p className="meta">
-        These actions call the local application boundary, which calls the
-        accepted owning services.
-      </p>
+      <p className="meta">{text.pages.localActions.copy}</p>
       <div className="actions">
         <button
           className="button"
@@ -52,7 +60,9 @@ export function LocalActions() {
           disabled={Boolean(loading)}
           onClick={() => void run("/api/local/asset-intake", "asset")}
         >
-          {loading === "asset" ? "Submitting..." : "Submit Asset Intake"}
+          {loading === "asset"
+            ? text.pages.localActions.submitting
+            : text.pages.localActions.submitAsset}
         </button>
         <button
           className="button secondary"
@@ -61,8 +71,8 @@ export function LocalActions() {
           onClick={() => void run("/api/local/invalid-publishing", "invalid")}
         >
           {loading === "invalid"
-            ? "Checking..."
-            : "Check Invalid Publishing Gate"}
+            ? text.pages.localActions.checking
+            : text.pages.localActions.checkInvalid}
         </button>
         <button
           className="button secondary"
@@ -70,7 +80,9 @@ export function LocalActions() {
           disabled={Boolean(loading)}
           onClick={() => void run("/api/local/media-fixture", "media")}
         >
-          {loading === "media" ? "Storing..." : "Add Local Media"}
+          {loading === "media"
+            ? text.pages.localActions.storing
+            : text.pages.localActions.addMedia}
         </button>
       </div>
       {result ? (
@@ -78,14 +90,16 @@ export function LocalActions() {
           className={`notice ${result.ok ? "success" : "error"}`}
           role="status"
         >
-          <strong>{result.title}</strong>
-          <div>{result.message}</div>
-          {result.code ? <div className="meta">Code: {result.code}</div> : null}
+          <strong>{localizeValue(result.title, language)}</strong>
+          <div>{localizeValue(result.message, language)}</div>
+          {result.code ? (
+            <div className="meta">
+              {text.common.code}: {result.code}
+            </div>
+          ) : null}
         </div>
       ) : (
-        <div className="empty">
-          No operation has been submitted from this screen yet.
-        </div>
+        <div className="empty">{text.pages.localActions.empty}</div>
       )}
     </section>
   );

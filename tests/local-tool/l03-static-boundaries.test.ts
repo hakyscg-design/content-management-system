@@ -47,7 +47,8 @@ describe("L-03 static boundaries", () => {
       expect(
         source.includes("@ftv/local-runtime") ||
           source.includes("project-context") ||
-          source.includes("resolveLocalProject")
+          source.includes("resolveLocalProject") ||
+          source.includes("OPERATOR_LANGUAGE_COOKIE")
       ).toBe(true);
       expect(source).not.toContain("new SourceAssetRegistryService");
       expect(source).not.toContain("new PrismaClient");

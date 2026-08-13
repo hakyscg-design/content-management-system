@@ -82,7 +82,15 @@ input {
   display: flex;
   align-items: flex-end;
   gap: 8px;
+  margin-top: 0;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
   margin-top: 14px;
+  flex-wrap: wrap;
 }
 
 .project-label {
@@ -101,6 +109,39 @@ input {
   background: white;
   color: var(--ink);
   padding: 8px 10px;
+}
+
+.language-switcher {
+  display: grid;
+  gap: 4px;
+}
+
+.language-toggle {
+  display: inline-flex;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.language-option {
+  min-width: 46px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: white;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.language-option:last-child {
+  border-right: 0;
+}
+
+.language-option[aria-pressed="true"] {
+  background: var(--accent);
+  color: white;
 }
 
 .nav {
@@ -326,14 +367,21 @@ textarea.field {
     white-space: normal;
   }
 
-  .project-switcher {
+  .project-switcher,
+  .topbar-controls {
     align-items: stretch;
   }
 
   .project-label,
   .project-select,
-  .project-switcher .button {
+  .project-switcher .button,
+  .language-switcher,
+  .language-toggle {
     width: 100%;
+  }
+
+  .language-option {
+    flex: 1;
   }
 
   .nav {

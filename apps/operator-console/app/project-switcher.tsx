@@ -1,10 +1,15 @@
+import type { OperatorCopy } from "./i18n.js";
 import { listOperatorProjects } from "./project-context.js";
 
 interface ProjectSwitcherProps {
   readonly activeProjectId: string;
+  readonly text: OperatorCopy["shell"];
 }
 
-export function ProjectSwitcher({ activeProjectId }: ProjectSwitcherProps) {
+export function ProjectSwitcher({
+  activeProjectId,
+  text
+}: ProjectSwitcherProps) {
   const projects = listOperatorProjects();
 
   return (
@@ -12,10 +17,10 @@ export function ProjectSwitcher({ activeProjectId }: ProjectSwitcherProps) {
       className="project-switcher"
       action="/api/local/project"
       method="post"
-      aria-label="Active CMS project"
+      aria-label={text.projectAria}
     >
       <label className="project-label" htmlFor="project-id">
-        Active project
+        {text.projectLabel}
       </label>
       <select
         className="project-select"
@@ -30,7 +35,7 @@ export function ProjectSwitcher({ activeProjectId }: ProjectSwitcherProps) {
         ))}
       </select>
       <button className="button secondary compact" type="submit">
-        Switch
+        {text.projectSwitch}
       </button>
     </form>
   );

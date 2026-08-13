@@ -2,23 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { OperatorCopy } from "./i18n.js";
 
 const navigationItems = [
-  { href: "/", label: "Overview" },
-  { href: "/source-assets", label: "Source & Assets" },
-  { href: "/content-production", label: "Content Production" },
-  { href: "/workflow", label: "Workflow" },
-  { href: "/review", label: "Review" },
-  { href: "/publishing", label: "Publishing" },
-  { href: "/performance-analytics", label: "Performance & Analytics" },
-  { href: "/administration", label: "Administration" }
+  { href: "/", key: "overview" },
+  { href: "/source-assets", key: "sourceAssets" },
+  { href: "/content-production", key: "contentProduction" },
+  { href: "/workflow", key: "workflow" },
+  { href: "/review", key: "review" },
+  { href: "/publishing", key: "publishing" },
+  { href: "/performance-analytics", key: "performanceAnalytics" },
+  { href: "/administration", key: "administration" }
 ] as const;
 
-export function Navigation() {
+export function Navigation({ text }: { readonly text: OperatorCopy["nav"] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="nav" aria-label="Primary">
+    <nav className="nav" aria-label={text.primary}>
       {navigationItems.map((item) => (
         <Link
           className="nav-link"
@@ -26,7 +27,7 @@ export function Navigation() {
           aria-current={pathname === item.href ? "page" : undefined}
           key={item.href}
         >
-          {item.label}
+          {text[item.key]}
         </Link>
       ))}
     </nav>
