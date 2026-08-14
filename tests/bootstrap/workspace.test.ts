@@ -95,4 +95,34 @@ describe("BE-01 workspace scaffold", () => {
     expect(gitignore).toContain(".env.test");
     expect(gitignore).toContain(".env.*.local");
   });
+
+  test("operator console dev startup clears stale Next generated assets", () => {
+    const rootPackage = JSON.parse(
+      readFileSync(join(root, "package.json"), "utf8")
+    );
+    const operatorPackage = JSON.parse(
+      readFileSync(join(root, "apps/operator-console/package.json"), "utf8")
+    );
+    const cleanupScript = readFileSync(
+      join(root, "scripts/local/clean-operator-console-next.mjs"),
+      "utf8"
+    );
+
+    expect(rootPackage.scripts.predev).toBe(
+      "node scripts/local/clean-operator-console-next.mjs"
+    );
+    expect(rootPackage.scripts.dev).toBe(
+      "pnpm --filter @ftv/operator-console dev"
+    );
+    expect(operatorPackage.scripts.predev).toBe(
+      "node ../../scripts/local/clean-operator-console-next.mjs"
+    );
+    expect(operatorPackage.scripts.dev).toBe(
+      "next dev --hostname localhost --port 3000"
+    );
+    expect(cleanupScript).toContain(
+      'join(root, "apps", "operator-console", ".next")'
+    );
+    expect(cleanupScript).not.toContain(".ftv-local");
+  });
 });
