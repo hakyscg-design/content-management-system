@@ -71,6 +71,9 @@ Repository reality: PR #7 was already merged before this correction. The correct
 - Correction merge SHA: `d0db4cb99ec2343a47417c3fbd25951aec895f11`
 - PR #8 supersedes the localization quality of the earlier PR #7 baseline while preserving the original Feature 07 scope and behavior.
 - Runtime smoke status: SKIPPED - operator verification, explicitly operator-approved for release closure.
+- Post-release runtime hotfix PR: https://github.com/hakyscg-design/content-management-system/pull/9
+- Post-release runtime hotfix merge SHA: `a26c6b0cf7785aacc3c85610aebbf1d74836cdaa`
+- PR #9 is part of the final accepted Feature 07 baseline and restores stable Next generated-cache startup for styled CMS runtime and EN/VN switching.
 - Final release evidence commit: recorded in the operator handoff after this report update.
 - Final release tag: `cms-feature-07-en-vn-language-layer-release`
 - Freeze/release status: corrected, operator accepted, frozen, and released.

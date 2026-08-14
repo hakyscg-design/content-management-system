@@ -76,4 +76,4 @@ Post-release hotfix for the operator console losing application styling at `loca
 
 ## Status
 
-HOTFIX OPERATOR ACCEPTED - READY FOR MERGE
+HOTFIX MERGED - INCLUDED IN FEATURE 07 FINAL CORRECTED BASELINE
