@@ -5,6 +5,7 @@
   "type": "module",
   "description": "L-02 local operator console for Football Troll Vault v2.",
   "scripts": {
+    "predev": "node ../../scripts/local/clean-operator-console-next.mjs",
     "dev": "next dev --hostname localhost --port 3000"
   },
   "dependencies": {
