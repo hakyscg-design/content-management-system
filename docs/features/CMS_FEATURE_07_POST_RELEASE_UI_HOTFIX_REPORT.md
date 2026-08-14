@@ -57,8 +57,9 @@ Post-release hotfix for the operator console losing application styling at `loca
 ## PR And SHA
 
 - Branch: `hotfix/feature-07-operator-console-styles`
-- PR: to be recorded after PR creation.
-- Ending SHA: `a86ac3f31e5ed67270e39a8af0193bc1b7a76b3a`
+- PR: https://github.com/hakyscg-design/content-management-system/pull/9
+- Ending implementation SHA: `a86ac3f31e5ed67270e39a8af0193bc1b7a76b3a`
+- Ending report/PR head SHA: recorded in the operator handoff.
 
 ## Status
 
