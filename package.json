@@ -14,6 +14,7 @@
     "doctor": "node scripts/local/doctor.mjs",
     "backup": "node scripts/local/backup.mjs",
     "restore": "node scripts/local/restore.mjs",
+    "predev": "node scripts/local/clean-operator-console-next.mjs",
     "dev": "pnpm --filter @ftv/operator-console dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
