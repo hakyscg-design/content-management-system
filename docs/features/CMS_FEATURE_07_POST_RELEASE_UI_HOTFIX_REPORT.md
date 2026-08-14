@@ -63,8 +63,8 @@ Post-release hotfix for the operator console losing application styling at `loca
   - Result: PASS.
   - Notes: Next emitted existing non-blocking advisories about webpack cache snapshotting and the Next.js ESLint plugin.
 - Runtime browser smoke:
-  - Result: SKIPPED - operator verification.
-  - Reason: operator instructed Codex not to spend time troubleshooting background server startup.
+  - Result: PASS - operator verified.
+  - Evidence: CMS starts normally on `localhost:3000`; accepted CMS UI styling loads correctly; EN/VN switching works normally; repeated EN -> VN -> EN -> VN switching does not produce runtime errors; no Internal Server Error or missing Next chunk issue remains.
 
 ## PR And SHA
 
@@ -72,8 +72,8 @@ Post-release hotfix for the operator console losing application styling at `loca
 - PR: https://github.com/hakyscg-design/content-management-system/pull/9
 - Ending implementation SHA: `a86ac3f31e5ed67270e39a8af0193bc1b7a76b3a`
 - Runtime startup safeguard SHA: `898c6b1a35e04e39f64c3ff616fe42a57c2601a4`
-- Ending report/PR head SHA: `42fb0960e9aa38618d44c04265bd11ecbcee4328`
+- Ending report/PR head SHA: `b8e5cfef2ee89d50a5bd126332b7638b009347f8`
 
 ## Status
 
-HOTFIX READY - AWAITING OPERATOR REVIEW
+HOTFIX OPERATOR ACCEPTED - READY FOR MERGE
